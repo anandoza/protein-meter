@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Barcode Protein Calculator</title>
+    <title>Protein Meter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
@@ -15,9 +15,17 @@
             border-radius: 0.5rem; /* rounded-lg */
             overflow: hidden; /* Keep video contained */
             position: relative; /* For potential overlay elements */
-            min-height: 200px; /* Ensure minimum height */
+            min-height: 200px; /* Default height when active */
             background-color: #e5e7eb; /* Tailwind gray-200 */
+            transition: min-height 0.3s ease-in-out, border 0.3s ease-in-out, background-color 0.3s ease-in-out; /* Smooth transition */
         }
+        /* Styles when scanner is INACTIVE */
+        #reader.inactive {
+            min-height: 0px !important; /* Collapse height */
+            border-width: 0px !important; /* Hide border */
+            background-color: transparent !important; /* Hide background */
+        }
+
         /* Ensure video fills the reader container */
         #reader video {
             width: 100%;
@@ -32,7 +40,7 @@
         #html5-qrcode-button-file-selection {
             /* display: none; */ /* Uncomment to hide file upload */
         }
-        /* Center placeholder text */
+        /* Center placeholder text (less relevant now as it collapses) */
         #reader > div:first-child {
              display: flex;
              align-items: center;
@@ -69,11 +77,10 @@
 <body class="bg-gray-100 font-sans flex flex-col items-center min-h-screen p-4">
 
     <div class="bg-white p-6 md:p-8 rounded-lg shadow-xl w-full max-w-2xl">
-        <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">Barcode Protein Calculator</h1>
+        <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">Protein Meter</h1>
 
-        <div id="reader" class="mx-auto mb-4">
-            <span>Scanner loading...</span>
-        </div>
+        <div id="reader" class="mx-auto mb-4 inactive">
+            </div>
         <div class="text-center mb-6">
              <button id="start-scan-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md">
                 Start Scanning
@@ -85,7 +92,7 @@
 
         <div id="results-area" class="bg-gray-50 p-4 md:p-6 rounded-lg border border-gray-200 min-h-[150px] mt-6">
             <h2 class="text-xl font-semibold text-gray-700 mb-3 border-b pb-2">Results</h2>
-            <div id="status-message" class="text-gray-600 italic mb-4">Scan a barcode to see product info.</div>
+            <div id="status-message" class="text-gray-600 italic mb-4">Click "Start Scanning" to begin.</div>
 
             <div id="product-info" class="hidden space-y-3">
                 <p><strong class="font-medium text-gray-800 w-28 inline-block">Product:</strong> <span id="product-name" class="text-gray-700 font-semibold"></span></p>
@@ -155,36 +162,28 @@
                  percentage = 0; // Treat invalid as 0 for display
                  label = 'N/A';
             } else {
-                 // Clamp percentage between 0 and 100 for bar width
-                 percentage = Math.min(Math.max(percentage, 0), 100);
+                 percentage = Math.min(Math.max(percentage, 0), 100); // Clamp percentage
 
                  if (percentage === 0) {
-                     label = 'Zero';
-                     colorClass = 'bg-gray-500';
-                 } else if (percentage < 15) { // Up to 14.9%
-                     label = 'Low';
-                     colorClass = 'bg-red-500';
-                 } else if (percentage < 30) { // 15% to 29.9%
-                     label = 'Okay';
-                     colorClass = 'bg-orange-500';
-                 } else if (percentage < 50) { // 30% to 49.9%
-                     label = 'Good';
-                     colorClass = 'bg-yellow-500';
-                 } else if (percentage < 70) { // 50% to 69.9%
-                     label = 'Great';
-                     colorClass = 'bg-green-500';
-                 } else { // 70%+
-                     label = 'Amazing';
-                     colorClass = 'bg-blue-600';
+                     label = 'Zero'; colorClass = 'bg-gray-500';
+                 } else if (percentage < 15) {
+                     label = 'Low'; colorClass = 'bg-red-500';
+                 } else if (percentage < 30) {
+                     label = 'Okay'; colorClass = 'bg-orange-500';
+                 } else if (percentage < 50) {
+                     label = 'Good'; colorClass = 'bg-yellow-500';
+                 } else if (percentage < 70) {
+                     label = 'Great'; colorClass = 'bg-green-500';
+                 } else {
+                     label = 'Amazing'; colorClass = 'bg-blue-600';
                  }
             }
-
             return { percentage: percentage.toFixed(1), colorClass, label };
         }
 
         // --- Update UI Functions ---
         function resetUI() {
-            statusMessage.textContent = 'Scan a barcode to see product info.';
+            statusMessage.textContent = 'Click "Start Scanning" to begin.';
             productInfoDiv.classList.add('hidden');
             errorMessageSpan.textContent = '';
             productNameSpan.textContent = '';
@@ -193,10 +192,12 @@
             offLink.href = '#';
             proteinBar.style.width = '0%';
             proteinBar.textContent = '0%';
-            proteinBar.className = 'percentage-bar-fill bg-gray-400'; // Reset color
+            proteinBar.className = 'percentage-bar-fill bg-gray-400';
             proteinLabel.textContent = 'N/A';
             proteinGramsSpan.textContent = 'N/A';
             energyKcalSpan.textContent = 'N/A';
+            readerElement.classList.add('inactive'); // Ensure reader is collapsed initially
+            readerElement.innerHTML = ''; // Clear any previous content
         }
 
         function updateUIWithData(barcode, product) {
@@ -205,86 +206,91 @@
             const protein100g = parseFloat(nutriments.proteins_100g);
             const energyKcal100g = parseFloat(nutriments['energy-kcal_100g']);
 
-            // Update basic info
             productNameSpan.textContent = productName;
             barcodeResultSpan.textContent = barcode;
             offLink.href = `https://world.openfoodfacts.org/product/${barcode}`;
             offLink.classList.remove('hidden');
             proteinGramsSpan.textContent = isNaN(protein100g) ? 'N/A' : protein100g.toFixed(1) + 'g';
-            energyKcalSpan.textContent = isNaN(energyKcal100g) ? 'N/A' : energyKcal100g.toFixed(0); // Whole number for kcal
+            energyKcalSpan.textContent = isNaN(energyKcal100g) ? 'N/A' : energyKcal100g.toFixed(0);
 
-            // Calculate and display protein percentage
             let percentage = NaN;
             if (!isNaN(protein100g) && !isNaN(energyKcal100g) && energyKcal100g > 0) {
-                const caloriesFromProtein = protein100g * 4; // Approx 4 kcal per gram
+                const caloriesFromProtein = protein100g * 4;
                 percentage = (caloriesFromProtein / energyKcal100g) * 100;
             }
 
             const proteinInfo = getProteinInfo(percentage);
-
-            // Update bar style and text
             proteinBar.style.width = `${proteinInfo.percentage}%`;
             proteinBar.textContent = `${proteinInfo.percentage}%`;
-            // Update color class - remove old, add new
-            proteinBar.className = 'percentage-bar-fill'; // Reset base class
-            proteinBar.classList.add(proteinInfo.colorClass); // Add new color
-
+            proteinBar.className = 'percentage-bar-fill';
+            proteinBar.classList.add(proteinInfo.colorClass);
             proteinLabel.textContent = proteinInfo.label;
 
-            // Display calculation error message if needed
             if (isNaN(percentage)) {
                  let missingInfo = [];
                  if (isNaN(protein100g)) missingInfo.push("protein data");
                  if (isNaN(energyKcal100g) || energyKcal100g <= 0) missingInfo.push("calorie data (kcal)");
                  errorMessageSpan.textContent = `Calculation failed: Missing or invalid ${missingInfo.join(' and ')}.`;
-                 statusMessage.textContent = 'Product data loaded, but calculation incomplete.';
+                 statusMessage.textContent = 'Product data loaded, calculation incomplete. Scan stopped.'; // Updated status
             } else {
-                 errorMessageSpan.textContent = ''; // Clear previous errors
-                 statusMessage.textContent = 'Product data loaded.';
+                 errorMessageSpan.textContent = '';
+                 statusMessage.textContent = 'Product data loaded. Scan stopped.'; // Updated status
             }
 
             productInfoDiv.classList.remove('hidden');
+            // --- Auto-stop scanning after successful display ---
+            stopScanning();
         }
 
         function updateUIWithError(barcode, errorMsg) {
-             statusMessage.textContent = `Error: ${errorMsg}`;
-             productInfoDiv.classList.remove('hidden'); // Show results area to display error
+             statusMessage.textContent = `Error: ${errorMsg}. Scan stopped.`; // Updated status
+             productInfoDiv.classList.remove('hidden');
              productNameSpan.textContent = 'Error';
              barcodeResultSpan.textContent = barcode;
              offLink.classList.add('hidden');
              offLink.href = '#';
              proteinBar.style.width = '0%';
              proteinBar.textContent = 'Error';
-             proteinBar.className = 'percentage-bar-fill bg-red-600'; // Error color
+             proteinBar.className = 'percentage-bar-fill bg-red-600';
              proteinLabel.textContent = 'Error';
              proteinGramsSpan.textContent = 'N/A';
              energyKcalSpan.textContent = 'N/A';
-             errorMessageSpan.textContent = `Could not retrieve data for barcode ${barcode}. The product might not be in the Open Food Facts database or there was a network issue.`;
+             errorMessageSpan.textContent = `Could not retrieve data for barcode ${barcode}. Product might not be in DB or network issue.`;
+             // --- Auto-stop scanning after error ---
+             stopScanning();
         }
 
 
         // --- Scanning Callbacks ---
         const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-            if (decodedText && decodedText !== lastScannedBarcode) {
+            // Only process if it's a new barcode or scanning is explicitly active
+            if (isScanning && decodedText && decodedText !== lastScannedBarcode) {
                 console.log(`Code matched = ${decodedText}`, decodedResult);
-                lastScannedBarcode = decodedText;
+                lastScannedBarcode = decodedText; // Set immediately to prevent rapid re-triggering before fetch
                 statusMessage.textContent = `Barcode detected: ${decodedText}. Fetching data...`;
-                errorMessageSpan.textContent = ''; // Clear previous errors before fetch
-                fetchProductData(decodedText);
+                errorMessageSpan.textContent = '';
+                fetchProductData(decodedText); // Fetch data, which will then call updateUI and stopScanning
             }
         };
 
         const qrCodeErrorCallback = (errorMessage) => {
-            // console.warn(`Code scan error = ${errorMessage}`); // Optional: Log scan errors
+            // console.warn(`Code scan error = ${errorMessage}`);
         };
 
         // --- Start Scanning ---
         function startScanning() {
-            if (isScanning) return; // Already scanning
+            if (isScanning) return;
             if (!html5QrCode) {
                  statusMessage.textContent = 'Scanner not initialized. Please wait or refresh.';
                  return;
             }
+
+            // --- Prepare UI for scanning ---
+            readerElement.classList.remove('inactive'); // Expand the reader div
+            readerElement.innerHTML = ''; // Clear any previous placeholder/video
+            statusMessage.textContent = 'Starting scanner...'; // Initial status
+            productInfoDiv.classList.add('hidden'); // Hide old results
+            errorMessageSpan.textContent = ''; // Clear old errors
 
             const config = {
                 fps: 10,
@@ -297,76 +303,103 @@
             .then(() => {
                 console.log("Scanner started successfully.");
                 isScanning = true;
-                lastScannedBarcode = null;
+                lastScannedBarcode = null; // Reset last scanned on new start
                 startScanBtn.classList.add('hidden');
                 stopScanBtn.classList.remove('hidden');
                 statusMessage.textContent = 'Scanning... Point camera at a barcode.';
-                errorMessageSpan.textContent = '';
-                // Keep previous results visible until new scan succeeds or fails
-                // productInfoDiv.classList.add('hidden'); // Don't hide immediately
             }).catch(err => {
                 console.error(`Unable to start scanning: ${err}`);
-                statusMessage.textContent = `Error starting scanner: ${err}. Ensure camera permissions are granted and using HTTPS.`;
+                statusMessage.textContent = `Error starting scanner: ${err}. Check permissions & HTTPS.`;
                 isScanning = false;
+                readerElement.classList.add('inactive'); // Collapse reader on error
+                startScanBtn.classList.remove('hidden'); // Show start button again
+                stopScanBtn.classList.add('hidden');
             });
         }
 
         // --- Stop Scanning ---
         function stopScanning() {
-            if (!isScanning || !html5QrCode || !html5QrCode.isScanning) return; // Not scanning
+            // Only try to stop if it's actually scanning
+            if (!isScanning || !html5QrCode || !html5QrCode.isScanning) {
+                 // Ensure UI is in stopped state even if scanner wasn't technically running
+                 isScanning = false;
+                 startScanBtn.classList.remove('hidden');
+                 stopScanBtn.classList.add('hidden');
+                 readerElement.classList.add('inactive'); // Collapse reader
+                 // Don't clear readerElement.innerHTML here if html5QrCode.stop() wasn't called
+                 // Update status message *unless* a success/error message was just set
+                 if (statusMessage.textContent.includes('Scanning...') || statusMessage.textContent.includes('Starting scanner...')) {
+                     statusMessage.textContent = 'Scanner stopped.';
+                 }
+                 return; // Exit if not scanning
+            }
+
 
             html5QrCode.stop().then(() => {
                 console.log("Scanner stopped successfully.");
-                isScanning = false;
-                startScanBtn.classList.remove('hidden');
-                stopScanBtn.classList.add('hidden');
-                statusMessage.textContent = 'Scanner stopped.';
-                readerElement.innerHTML = '<span>Scanner stopped. Click "Start Scanning" to begin.</span>';
             }).catch(err => {
                 console.error(`Unable to stop scanning: ${err}`);
-                statusMessage.textContent = 'Error stopping scanner.';
-                // Force UI update even if stop promise fails
-                isScanning = false;
-                startScanBtn.classList.remove('hidden');
-                stopScanBtn.classList.add('hidden');
+                // Continue UI updates even if stop promise fails
+            }).finally(() => {
+                 // This block runs whether stop() succeeded or failed
+                 isScanning = false;
+                 startScanBtn.classList.remove('hidden');
+                 stopScanBtn.classList.add('hidden');
+                 readerElement.classList.add('inactive'); // Collapse reader visually
+                 readerElement.innerHTML = ''; // Clear video/placeholder after stopping
+                 // Update status message *unless* a success/error message was just set by updateUI functions
+                 if (statusMessage.textContent.includes('Scanning...') || statusMessage.textContent.includes('Starting scanner...')) {
+                     statusMessage.textContent = 'Scanner stopped.';
+                 }
+                 lastScannedBarcode = null; // Allow rescanning same code next time
             });
         }
 
         // --- Fetch Data from Open Food Facts ---
         async function fetchProductData(barcode) {
-            const apiUrl = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,generic_name,nutriments`; // Request specific fields
+            // Check if scanning was stopped manually before fetch completes
+            if (!isScanning && lastScannedBarcode !== barcode) return;
+
+            const apiUrl = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,generic_name,nutriments`;
             console.log(`Fetching data from: ${apiUrl}`);
 
             try {
                 const response = await fetch(apiUrl);
+                 // Check again if scanning stopped during fetch
+                 if (!isScanning && lastScannedBarcode !== barcode) {
+                     console.log("Scanning stopped during fetch, aborting UI update.");
+                     return;
+                 };
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
                 console.log("API Response:", data);
 
+                // Check again if scanning stopped during fetch/parse
+                 if (!isScanning && lastScannedBarcode !== barcode) {
+                     console.log("Scanning stopped during fetch/parse, aborting UI update.");
+                     return;
+                 };
+
+
                 if (data.status === 1 && data.product) {
-                    updateUIWithData(barcode, data.product);
+                    updateUIWithData(barcode, data.product); // This will call stopScanning()
                 } else {
                     throw new Error(data.status_verbose || 'Product not found in Open Food Facts');
                 }
 
             } catch (error) {
                 console.error("Error fetching or processing product data:", error);
-                updateUIWithError(barcode, error.message);
-
-            } finally {
-                 // Allow scanning the same barcode again after a short delay or immediately
-                 // setTimeout(() => { lastScannedBarcode = null; }, 1000); // Optional delay
-                 lastScannedBarcode = null; // Allow immediate rescan if needed
-
-                 if (!isScanning && statusMessage.textContent.startsWith('Error:')) {
-                     // If scanning stopped during fetch AND there was an error, update status
-                     statusMessage.textContent = 'Scanner stopped. Last attempt failed.';
-                 } else if (!isScanning) {
-                      statusMessage.textContent = 'Scanner stopped.';
-                 }
+                 // Check again if scanning stopped during error handling
+                 if (!isScanning && lastScannedBarcode !== barcode) {
+                     console.log("Scanning stopped during error handling, aborting UI update.");
+                     return;
+                 };
+                updateUIWithError(barcode, error.message); // This will call stopScanning()
             }
+            // No finally block needed here as stopScanning is called within updateUI functions
         }
 
         // --- Event Listeners ---
@@ -379,8 +412,7 @@
         // --- Initial Setup ---
         document.addEventListener('DOMContentLoaded', () => {
             initializeScanner();
-            resetUI(); // Set initial state
-            statusMessage.textContent = 'Click "Start Scanning" to begin.';
+            resetUI(); // Set initial state (reader collapsed)
         });
 
     </script>
