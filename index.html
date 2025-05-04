@@ -15,6 +15,8 @@
             border-radius: 0.5rem; /* rounded-lg */
             overflow: hidden; /* Keep video contained */
             position: relative; /* For potential overlay elements */
+            min-height: 200px; /* Ensure minimum height */
+            background-color: #e5e7eb; /* Tailwind gray-200 */
         }
         /* Ensure video fills the reader container */
         #reader video {
@@ -36,36 +38,77 @@
              align-items: center;
              justify-content: center;
              text-align: center;
-             height: 200px; /* Give placeholder some height */
+             height: 100%;
+             min-height: 200px; /* Match container min-height */
+             color: #6b7280; /* Tailwind gray-500 */
+             font-style: italic;
+        }
+
+        /* Style for the percentage bar */
+        .percentage-bar-container {
+            background-color: #e5e7eb; /* Tailwind gray-200 */
+            border-radius: 0.375rem; /* rounded-md */
+            overflow: hidden;
+            height: 20px; /* Adjust height as needed */
+            width: 100%;
+        }
+        .percentage-bar-fill {
+            height: 100%;
+            border-radius: 0.375rem; /* rounded-md */
+            /* Smooth transition for width and color changes */
+            transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out;
+            text-align: center;
+            color: white;
+            font-size: 0.75rem; /* text-xs */
+            line-height: 20px; /* Center text vertically */
+            font-weight: 600; /* font-semibold */
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.2);
         }
     </style>
 </head>
 <body class="bg-gray-100 font-sans flex flex-col items-center min-h-screen p-4">
 
-    <div class="bg-white p-6 md:p-8 rounded-lg shadow-md w-full max-w-2xl">
+    <div class="bg-white p-6 md:p-8 rounded-lg shadow-xl w-full max-w-2xl">
         <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">Barcode Protein Calculator</h1>
 
-        <div id="reader" class="mx-auto mb-4 bg-gray-200 flex items-center justify-center text-gray-500">
+        <div id="reader" class="mx-auto mb-4">
             <span>Scanner loading...</span>
         </div>
         <div class="text-center mb-6">
-             <button id="start-scan-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out">
+             <button id="start-scan-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md">
                 Start Scanning
             </button>
-             <button id="stop-scan-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded hidden transition duration-300 ease-in-out">
+             <button id="stop-scan-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden transition duration-300 ease-in-out shadow hover:shadow-md">
                 Stop Scanning
             </button>
         </div>
 
+        <div id="results-area" class="bg-gray-50 p-4 md:p-6 rounded-lg border border-gray-200 min-h-[150px] mt-6">
+            <h2 class="text-xl font-semibold text-gray-700 mb-3 border-b pb-2">Results</h2>
+            <div id="status-message" class="text-gray-600 italic mb-4">Scan a barcode to see product info.</div>
 
-        <div id="results-area" class="bg-gray-50 p-4 rounded-lg border border-gray-200 min-h-[100px]">
-            <h2 class="text-xl font-semibold text-gray-700 mb-2">Results</h2>
-            <div id="status-message" class="text-gray-600 italic">Scan a barcode to see product info.</div>
-            <div id="product-info" class="hidden mt-2 space-y-1">
-                <p><strong class="font-medium text-gray-800">Barcode:</strong> <span id="barcode-result" class="text-gray-700"></span></p>
-                <p><strong class="font-medium text-gray-800">Product:</strong> <span id="product-name" class="text-gray-700"></span></p>
-                <p><strong class="font-medium text-gray-800">Protein Calories (%):</strong> <span id="protein-percentage" class="text-indigo-600 font-semibold"></span></p>
-                 <p id="error-message" class="text-red-500 font-medium"></p>
+            <div id="product-info" class="hidden space-y-3">
+                <p><strong class="font-medium text-gray-800 w-28 inline-block">Product:</strong> <span id="product-name" class="text-gray-700 font-semibold"></span></p>
+
+                <p><strong class="font-medium text-gray-800 w-28 inline-block">Barcode:</strong>
+                    <span id="barcode-result" class="text-gray-700 mr-2"></span>
+                    <a id="off-link" href="#" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-700 hover:underline text-sm hidden">[View on Open Food Facts]</a>
+                 </p>
+
+                <div class="flex items-center space-x-3">
+                    <strong class="font-medium text-gray-800 w-28 inline-block shrink-0">Protein %:</strong>
+                    <div class="percentage-bar-container flex-grow">
+                        <div id="protein-bar" class="percentage-bar-fill" style="width: 0%;">0%</div>
+                    </div>
+                    <span id="protein-label" class="text-sm font-medium text-gray-600 w-16 text-right shrink-0">N/A</span>
+                </div>
+
+                <div class="pt-2 text-sm text-gray-600 space-y-1">
+                     <p><strong class="font-medium text-gray-800 w-28 inline-block">Protein:</strong> <span id="protein-grams">N/A</span> / 100g</p>
+                     <p><strong class="font-medium text-gray-800 w-28 inline-block">Calories:</strong> <span id="energy-kcal">N/A</span> kcal / 100g</p>
+                 </div>
+
+                 <p id="error-message" class="text-red-600 font-medium pt-2"></p>
             </div>
         </div>
     </div>
@@ -75,6 +118,7 @@
     </footer>
 
     <script>
+        // --- DOM Elements ---
         const readerElement = document.getElementById('reader');
         const startScanBtn = document.getElementById('start-scan-btn');
         const stopScanBtn = document.getElementById('stop-scan-btn');
@@ -83,102 +127,214 @@
         const productInfoDiv = document.getElementById('product-info');
         const barcodeResultSpan = document.getElementById('barcode-result');
         const productNameSpan = document.getElementById('product-name');
-        const proteinPercentageSpan = document.getElementById('protein-percentage');
+        const proteinBar = document.getElementById('protein-bar');
+        const proteinLabel = document.getElementById('protein-label');
+        const proteinGramsSpan = document.getElementById('protein-grams');
+        const energyKcalSpan = document.getElementById('energy-kcal');
         const errorMessageSpan = document.getElementById('error-message');
+        const offLink = document.getElementById('off-link');
 
-        let html5QrCode = null; // To hold the scanner instance
+        // --- State Variables ---
+        let html5QrCode = null; // Scanner instance
         let isScanning = false;
-        let lastScannedBarcode = null; // Prevent re-fetching for the same scan
+        let lastScannedBarcode = null; // Prevent re-fetching for the same scan immediately
 
         // --- Scanner Initialization ---
         function initializeScanner() {
-             // Only create a new instance if one doesn't exist
              if (!html5QrCode) {
                  html5QrCode = new Html5Qrcode("reader");
              }
         }
 
+        // --- Protein Percentage Mapping ---
+        function getProteinInfo(percentage) {
+            let colorClass = 'bg-gray-400'; // Default/Error color
+            let label = 'N/A';
+
+            if (isNaN(percentage) || percentage < 0) {
+                 percentage = 0; // Treat invalid as 0 for display
+                 label = 'N/A';
+            } else {
+                 // Clamp percentage between 0 and 100 for bar width
+                 percentage = Math.min(Math.max(percentage, 0), 100);
+
+                 if (percentage === 0) {
+                     label = 'Zero';
+                     colorClass = 'bg-gray-500';
+                 } else if (percentage < 15) { // Up to 14.9%
+                     label = 'Low';
+                     colorClass = 'bg-red-500';
+                 } else if (percentage < 30) { // 15% to 29.9%
+                     label = 'Okay';
+                     colorClass = 'bg-orange-500';
+                 } else if (percentage < 50) { // 30% to 49.9%
+                     label = 'Good';
+                     colorClass = 'bg-yellow-500';
+                 } else if (percentage < 70) { // 50% to 69.9%
+                     label = 'Great';
+                     colorClass = 'bg-green-500';
+                 } else { // 70%+
+                     label = 'Amazing';
+                     colorClass = 'bg-blue-600';
+                 }
+            }
+
+            return { percentage: percentage.toFixed(1), colorClass, label };
+        }
+
+        // --- Update UI Functions ---
+        function resetUI() {
+            statusMessage.textContent = 'Scan a barcode to see product info.';
+            productInfoDiv.classList.add('hidden');
+            errorMessageSpan.textContent = '';
+            productNameSpan.textContent = '';
+            barcodeResultSpan.textContent = '';
+            offLink.classList.add('hidden');
+            offLink.href = '#';
+            proteinBar.style.width = '0%';
+            proteinBar.textContent = '0%';
+            proteinBar.className = 'percentage-bar-fill bg-gray-400'; // Reset color
+            proteinLabel.textContent = 'N/A';
+            proteinGramsSpan.textContent = 'N/A';
+            energyKcalSpan.textContent = 'N/A';
+        }
+
+        function updateUIWithData(barcode, product) {
+            const nutriments = product.nutriments || {};
+            const productName = product.product_name || product.generic_name || 'N/A';
+            const protein100g = parseFloat(nutriments.proteins_100g);
+            const energyKcal100g = parseFloat(nutriments['energy-kcal_100g']);
+
+            // Update basic info
+            productNameSpan.textContent = productName;
+            barcodeResultSpan.textContent = barcode;
+            offLink.href = `https://world.openfoodfacts.org/product/${barcode}`;
+            offLink.classList.remove('hidden');
+            proteinGramsSpan.textContent = isNaN(protein100g) ? 'N/A' : protein100g.toFixed(1) + 'g';
+            energyKcalSpan.textContent = isNaN(energyKcal100g) ? 'N/A' : energyKcal100g.toFixed(0); // Whole number for kcal
+
+            // Calculate and display protein percentage
+            let percentage = NaN;
+            if (!isNaN(protein100g) && !isNaN(energyKcal100g) && energyKcal100g > 0) {
+                const caloriesFromProtein = protein100g * 4; // Approx 4 kcal per gram
+                percentage = (caloriesFromProtein / energyKcal100g) * 100;
+            }
+
+            const proteinInfo = getProteinInfo(percentage);
+
+            // Update bar style and text
+            proteinBar.style.width = `${proteinInfo.percentage}%`;
+            proteinBar.textContent = `${proteinInfo.percentage}%`;
+            // Update color class - remove old, add new
+            proteinBar.className = 'percentage-bar-fill'; // Reset base class
+            proteinBar.classList.add(proteinInfo.colorClass); // Add new color
+
+            proteinLabel.textContent = proteinInfo.label;
+
+            // Display calculation error message if needed
+            if (isNaN(percentage)) {
+                 let missingInfo = [];
+                 if (isNaN(protein100g)) missingInfo.push("protein data");
+                 if (isNaN(energyKcal100g) || energyKcal100g <= 0) missingInfo.push("calorie data (kcal)");
+                 errorMessageSpan.textContent = `Calculation failed: Missing or invalid ${missingInfo.join(' and ')}.`;
+                 statusMessage.textContent = 'Product data loaded, but calculation incomplete.';
+            } else {
+                 errorMessageSpan.textContent = ''; // Clear previous errors
+                 statusMessage.textContent = 'Product data loaded.';
+            }
+
+            productInfoDiv.classList.remove('hidden');
+        }
+
+        function updateUIWithError(barcode, errorMsg) {
+             statusMessage.textContent = `Error: ${errorMsg}`;
+             productInfoDiv.classList.remove('hidden'); // Show results area to display error
+             productNameSpan.textContent = 'Error';
+             barcodeResultSpan.textContent = barcode;
+             offLink.classList.add('hidden');
+             offLink.href = '#';
+             proteinBar.style.width = '0%';
+             proteinBar.textContent = 'Error';
+             proteinBar.className = 'percentage-bar-fill bg-red-600'; // Error color
+             proteinLabel.textContent = 'Error';
+             proteinGramsSpan.textContent = 'N/A';
+             energyKcalSpan.textContent = 'N/A';
+             errorMessageSpan.textContent = `Could not retrieve data for barcode ${barcode}. The product might not be in the Open Food Facts database or there was a network issue.`;
+        }
+
+
         // --- Scanning Callbacks ---
         const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-            // Handle the scanned code - prevent rapid re-scans of the same code
             if (decodedText && decodedText !== lastScannedBarcode) {
                 console.log(`Code matched = ${decodedText}`, decodedResult);
-                lastScannedBarcode = decodedText; // Store the last successful scan
+                lastScannedBarcode = decodedText;
                 statusMessage.textContent = `Barcode detected: ${decodedText}. Fetching data...`;
-                productInfoDiv.classList.add('hidden'); // Hide previous results
-                errorMessageSpan.textContent = ''; // Clear previous errors
-                barcodeResultSpan.textContent = decodedText;
+                errorMessageSpan.textContent = ''; // Clear previous errors before fetch
                 fetchProductData(decodedText);
             }
         };
 
         const qrCodeErrorCallback = (errorMessage) => {
-            // Ignore common errors like "QR code parse error" unless debugging
-            // console.warn(`Code scan error = ${errorMessage}`);
+            // console.warn(`Code scan error = ${errorMessage}`); // Optional: Log scan errors
         };
 
         // --- Start Scanning ---
         function startScanning() {
-            if (!isScanning && html5QrCode) {
-                // Configuration for the scanner
-                const config = {
-                    fps: 10, // Scan frames per second
-                    qrbox: { width: 250, height: 250 }, // Square scanning area
-                    aspectRatio: 1.0, // Force square aspect ratio for camera feed if possible
-                    rememberLastUsedCamera: true, // Try to use the last camera
-                    // supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA] // Only use camera
-                };
-
-                // Start scanning using the back camera
-                html5QrCode.start(
-                    { facingMode: "environment" }, // Prefer back camera
-                    config,
-                    qrCodeSuccessCallback,
-                    qrCodeErrorCallback
-                ).then(() => {
-                    console.log("Scanner started successfully.");
-                    isScanning = true;
-                    lastScannedBarcode = null; // Reset last scanned on new start
-                    startScanBtn.classList.add('hidden');
-                    stopScanBtn.classList.remove('hidden');
-                    statusMessage.textContent = 'Scanning... Point camera at a barcode.';
-                    productInfoDiv.classList.add('hidden');
-                    errorMessageSpan.textContent = '';
-                }).catch(err => {
-                    console.error(`Unable to start scanning: ${err}`);
-                    statusMessage.textContent = `Error starting scanner: ${err}. Ensure camera permissions are granted and using HTTPS.`;
-                    isScanning = false; // Ensure state is correct on failure
-                });
-            } else if (!html5QrCode) {
+            if (isScanning) return; // Already scanning
+            if (!html5QrCode) {
                  statusMessage.textContent = 'Scanner not initialized. Please wait or refresh.';
+                 return;
             }
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0,
+                rememberLastUsedCamera: true,
+            };
+
+            html5QrCode.start( { facingMode: "environment" }, config, qrCodeSuccessCallback, qrCodeErrorCallback)
+            .then(() => {
+                console.log("Scanner started successfully.");
+                isScanning = true;
+                lastScannedBarcode = null;
+                startScanBtn.classList.add('hidden');
+                stopScanBtn.classList.remove('hidden');
+                statusMessage.textContent = 'Scanning... Point camera at a barcode.';
+                errorMessageSpan.textContent = '';
+                // Keep previous results visible until new scan succeeds or fails
+                // productInfoDiv.classList.add('hidden'); // Don't hide immediately
+            }).catch(err => {
+                console.error(`Unable to start scanning: ${err}`);
+                statusMessage.textContent = `Error starting scanner: ${err}. Ensure camera permissions are granted and using HTTPS.`;
+                isScanning = false;
+            });
         }
 
         // --- Stop Scanning ---
         function stopScanning() {
-            if (isScanning && html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                    console.log("Scanner stopped successfully.");
-                    isScanning = false;
-                    startScanBtn.classList.remove('hidden');
-                    stopScanBtn.classList.add('hidden');
-                    statusMessage.textContent = 'Scanner stopped.';
-                    // Clear the video feed display area
-                    readerElement.innerHTML = '<span>Scanner stopped. Click "Start Scanning" to begin.</span>';
-                }).catch(err => {
-                    console.error(`Unable to stop scanning: ${err}`);
-                    statusMessage.textContent = 'Error stopping scanner.';
-                    // Even if stopping fails, update UI assuming it stopped
-                    isScanning = false;
-                    startScanBtn.classList.remove('hidden');
-                    stopScanBtn.classList.add('hidden');
-                });
-            }
+            if (!isScanning || !html5QrCode || !html5QrCode.isScanning) return; // Not scanning
+
+            html5QrCode.stop().then(() => {
+                console.log("Scanner stopped successfully.");
+                isScanning = false;
+                startScanBtn.classList.remove('hidden');
+                stopScanBtn.classList.add('hidden');
+                statusMessage.textContent = 'Scanner stopped.';
+                readerElement.innerHTML = '<span>Scanner stopped. Click "Start Scanning" to begin.</span>';
+            }).catch(err => {
+                console.error(`Unable to stop scanning: ${err}`);
+                statusMessage.textContent = 'Error stopping scanner.';
+                // Force UI update even if stop promise fails
+                isScanning = false;
+                startScanBtn.classList.remove('hidden');
+                stopScanBtn.classList.add('hidden');
+            });
         }
 
         // --- Fetch Data from Open Food Facts ---
         async function fetchProductData(barcode) {
-            const apiUrl = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`;
+            const apiUrl = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,generic_name,nutriments`; // Request specific fields
             console.log(`Fetching data from: ${apiUrl}`);
 
             try {
@@ -190,72 +346,40 @@
                 console.log("API Response:", data);
 
                 if (data.status === 1 && data.product) {
-                    // Product found
-                    const product = data.product;
-                    const nutriments = product.nutriments || {};
-
-                    const productName = product.product_name || product.generic_name || 'N/A';
-                    const protein100g = parseFloat(nutriments.proteins_100g);
-                    const energyKcal100g = parseFloat(nutriments['energy-kcal_100g']); // Use kcal specifically
-
-                    productNameSpan.textContent = productName;
-
-                    if (!isNaN(protein100g) && !isNaN(energyKcal100g) && energyKcal100g > 0) {
-                        const caloriesFromProtein = protein100g * 4; // Approx 4 kcal per gram of protein
-                        const percentage = (caloriesFromProtein / energyKcal100g) * 100;
-
-                        proteinPercentageSpan.textContent = `${percentage.toFixed(1)}%`;
-                        statusMessage.textContent = 'Product data loaded.';
-                        errorMessageSpan.textContent = ''; // Clear error message
-                    } else {
-                        // Handle missing data
-                        let missingInfo = [];
-                        if (isNaN(protein100g)) missingInfo.push("protein data");
-                        if (isNaN(energyKcal100g) || energyKcal100g <= 0) missingInfo.push("calorie data (kcal)");
-
-                        proteinPercentageSpan.textContent = 'N/A';
-                        const errorText = `Calculation failed: Missing or invalid ${missingInfo.join(' and ')}.`;
-                        errorMessageSpan.textContent = errorText;
-                        statusMessage.textContent = 'Product data loaded, but calculation incomplete.';
-                        console.warn(errorText, nutriments);
-                    }
-                    productInfoDiv.classList.remove('hidden');
-
+                    updateUIWithData(barcode, data.product);
                 } else {
-                    // Product not found or error in response
-                    throw new Error(data.status_verbose || 'Product not found');
+                    throw new Error(data.status_verbose || 'Product not found in Open Food Facts');
                 }
 
             } catch (error) {
                 console.error("Error fetching or processing product data:", error);
-                statusMessage.textContent = `Error: ${error.message}.`;
-                productInfoDiv.classList.add('hidden'); // Hide results section on error
-                errorMessageSpan.textContent = `Could not retrieve data for barcode ${barcode}. The product might not be in the Open Food Facts database or there was a network issue.`;
-                productInfoDiv.classList.remove('hidden'); // Show the error message area
-                productNameSpan.textContent = 'Error';
-                proteinPercentageSpan.textContent = 'N/A';
+                updateUIWithError(barcode, error.message);
 
             } finally {
-                 // Allow scanning the same barcode again after processing
-                 // Keep lastScannedBarcode = null if you want continuous scanning of the same item
-                 // lastScannedBarcode = null;
-                 if (!isScanning) { // If scanning stopped during fetch, update status
-                     statusMessage.textContent = 'Scanner stopped.';
+                 // Allow scanning the same barcode again after a short delay or immediately
+                 // setTimeout(() => { lastScannedBarcode = null; }, 1000); // Optional delay
+                 lastScannedBarcode = null; // Allow immediate rescan if needed
+
+                 if (!isScanning && statusMessage.textContent.startsWith('Error:')) {
+                     // If scanning stopped during fetch AND there was an error, update status
+                     statusMessage.textContent = 'Scanner stopped. Last attempt failed.';
+                 } else if (!isScanning) {
+                      statusMessage.textContent = 'Scanner stopped.';
                  }
             }
         }
 
         // --- Event Listeners ---
         startScanBtn.addEventListener('click', () => {
-             initializeScanner(); // Ensure initialized before starting
+             initializeScanner();
              startScanning();
         });
         stopScanBtn.addEventListener('click', stopScanning);
 
         // --- Initial Setup ---
-        // Initialize on load so it's ready
         document.addEventListener('DOMContentLoaded', () => {
             initializeScanner();
+            resetUI(); // Set initial state
             statusMessage.textContent = 'Click "Start Scanning" to begin.';
         });
 
