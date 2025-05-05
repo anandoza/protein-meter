@@ -1,4 +1,4 @@
-const CACHE_NAME = 'protein-meter-cache-v1';
+const CACHE_NAME = 'protein-meter-cache-v2';
 // List of files to cache initially
 const urlsToCache = [
   './', // The root path, which serves index.html
