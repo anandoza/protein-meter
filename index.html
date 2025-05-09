@@ -51,11 +51,17 @@
         }
         .history-summary-wrapper { /* New wrapper for summary content */
             flex-grow: 1; /* Allow summary to take available space */
+            min-width: 0; /* Important for flex children to allow truncation */
         }
         .history-summary {
             padding: 0.5rem 0.75rem; cursor: pointer; display: flex;
             justify-content: space-between; align-items: center;
             transition: background-color 0.3s ease;
+        }
+        .history-summary .product-name-summary { /* Class for summary product name */
+            /* Tailwind 'truncate' applies: overflow: hidden; text-overflow: ellipsis; white-space: nowrap; */
+            /* Ensure it doesn't grow indefinitely, allowing truncation */
+            min-width: 0; /* Helps flex items truncate */
         }
         .history-summary:hover { filter: brightness(95%); }
         .history-details {
@@ -67,20 +73,29 @@
             max-height: 300px; padding: 0.75rem; border-top-color: #e5e7eb;
         }
         .delete-history-item-btn {
-            padding: 0.5rem; /* Adjust padding */
-            margin-left: 0.5rem; /* Space from summary */
-            margin-right: 0.5rem; /* Space from card edge */
+            padding: 0.5rem;
+            margin-left: 0.5rem;
+            margin-right: 0.5rem;
             cursor: pointer;
             color: #ef4444; /* red-500 */
             background-color: transparent;
             border: none;
             display: none; /* Hidden by default */
+            flex-shrink: 0; /* Prevent delete button from shrinking */
         }
         .history-card.deleting-mode .delete-history-item-btn {
-            display: inline-block; /* Show in deleting mode */
+            display: inline-block;
         }
         .delete-history-item-btn:hover {
             color: #dc2626; /* red-600 */
+        }
+        /* For the expanded details view product name */
+        .history-item-name-details {
+            white-space: normal; /* Allows text to wrap to the next line */
+            word-break: break-word; /* Breaks long words if they would overflow */
+            font-weight: 600; /* semibold */
+            margin-bottom: 0.25rem; /* mb-1 */
+            color: #374151; /* gray-700 */
         }
 
 
@@ -227,7 +242,7 @@
         const manualEntryError = document.getElementById('manual-entry-error');
         const historySection = document.getElementById('history-section');
         const historyList = document.getElementById('history-list');
-        const clearAllBtn = document.getElementById('clear-all-btn'); // Renamed
+        const clearAllBtn = document.getElementById('clear-all-btn');
         const manageHistoryBtn = document.getElementById('manage-history-btn');
         const noHistoryMessage = document.getElementById('no-history-message');
 
@@ -278,7 +293,6 @@
          }
          function saveHistory() {
              localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(scanHistory));
-             // "Clear All" button visibility is handled by toggleDeleteMode and renderHistory
              manageHistoryBtn.disabled = scanHistory.length === 0;
              noHistoryMessage.style.display = scanHistory.length === 0 ? 'block' : 'none';
          }
@@ -303,9 +317,9 @@
          }
 
          function deleteHistoryItem(itemTimestamp) {
-                scanHistory = scanHistory.filter(item => item.timestamp !== itemTimestamp);
-                saveHistory();
-                renderHistory();
+            scanHistory = scanHistory.filter(item => item.timestamp !== itemTimestamp);
+            saveHistory();
+            renderHistory();
          }
 
          function toggleDeleteMode() {
@@ -316,16 +330,15 @@
             } else {
                 clearAllBtn.classList.add('hidden');
             }
-            renderHistory(); // Re-render to show/hide delete icons on cards
+            renderHistory();
          }
 
 
-         function clearAllHistory() { // Renamed function
+         function clearAllHistory() {
              if (confirm("Are you sure you want to clear the entire history?")) {
                  scanHistory = [];
                  saveHistory();
-                 renderHistory(); // This will hide "Clear All" if history is empty
-                 // If in delete mode, and history becomes empty, toggleDeleteMode will handle exiting
+                 renderHistory();
              }
          }
          function renderHistory() {
@@ -334,21 +347,19 @@
                  historyList.appendChild(noHistoryMessage);
                  noHistoryMessage.style.display = 'block';
                  manageHistoryBtn.disabled = true;
-                 clearAllBtn.classList.add('hidden'); // Ensure hidden if no history
-                 if (isDeletingHistoryMode) { // Auto-exit delete mode if history becomes empty
+                 clearAllBtn.classList.add('hidden');
+                 if (isDeletingHistoryMode) {
                     toggleDeleteMode();
                  }
                  return;
              }
              noHistoryMessage.style.display = 'none';
              manageHistoryBtn.disabled = false;
-             // "Clear All" visibility is now primarily managed by toggleDeleteMode
              if (isDeletingHistoryMode) {
                  clearAllBtn.classList.remove('hidden');
              } else {
                  clearAllBtn.classList.add('hidden');
              }
-
 
              scanHistory.forEach(item => historyList.appendChild(createHistoryCard(item)));
          }
@@ -365,7 +376,7 @@
              const summary = document.createElement('div');
              summary.className = 'history-summary';
              summary.innerHTML = `
-                 <span class="font-medium text-sm truncate pr-2">${item.productName || (item.isManual ? 'Manual Entry' : 'N/A')}</span>
+                 <span class="font-medium text-sm truncate product-name-summary pr-2">${item.productName || (item.isManual ? 'Manual Entry' : 'N/A')}</span>
                  <span class="text-xs font-semibold whitespace-nowrap">${item.proteinActualPercentage}% ${item.proteinLabel || ''}</span>`;
              summary.onclick = () => {
                 if (!isDeletingHistoryMode) {
@@ -377,7 +388,9 @@
              const details = document.createElement('div');
              details.className = 'history-details text-xs space-y-1';
              const unitLabel = item.isManual ? '/ serving' : '/ 100g';
+             // Added product name to details for wrapping
              details.innerHTML = `
+                 <p class="history-item-name-details">${item.productName || (item.isManual ? 'Manual Entry' : 'N/A')}</p>
                  <div class="flex items-center space-x-2">
                      <strong class="font-medium text-gray-700 w-20 inline-block shrink-0">Protein %:</strong>
                      <div class="percentage-bar-container flex-grow" style="height: 16px;">
@@ -683,7 +696,7 @@
         manualEntryBtn.addEventListener('click', showManualEntryUI);
         cancelManualEntryBtn.addEventListener('click', showIdleUI);
         entryForm.addEventListener('submit', handleManualEntrySubmit);
-        clearAllBtn.addEventListener('click', clearAllHistory); // Changed listener
+        clearAllBtn.addEventListener('click', clearAllHistory);
         manageHistoryBtn.addEventListener('click', toggleDeleteMode);
 
 
