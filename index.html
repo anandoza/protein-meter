@@ -46,6 +46,11 @@
             border: 1px solid #e5e7eb; border-radius: 0.375rem;
             margin-bottom: 0.5rem; overflow: hidden;
             transition: background-color 0.3s ease;
+            display: flex; /* For aligning delete button */
+            align-items: center; /* For aligning delete button */
+        }
+        .history-summary-wrapper { /* New wrapper for summary content */
+            flex-grow: 1; /* Allow summary to take available space */
         }
         .history-summary {
             padding: 0.5rem 0.75rem; cursor: pointer; display: flex;
@@ -61,6 +66,24 @@
         .history-card.expanded .history-details {
             max-height: 300px; padding: 0.75rem; border-top-color: #e5e7eb;
         }
+        .delete-history-item-btn {
+            padding: 0.5rem; /* Adjust padding */
+            margin-left: 0.5rem; /* Space from summary */
+            margin-right: 0.5rem; /* Space from card edge */
+            cursor: pointer;
+            color: #ef4444; /* red-500 */
+            background-color: transparent;
+            border: none;
+            display: none; /* Hidden by default */
+        }
+        .history-card.deleting-mode .delete-history-item-btn {
+            display: inline-block; /* Show in deleting mode */
+        }
+        .delete-history-item-btn:hover {
+            color: #dc2626; /* red-600 */
+        }
+
+
         /* Faded Background Classes */
         .bg-fade-gray-500 { background-color: #f3f4f6; } .bg-fade-red-500 { background-color: #fee2e2; }
         .bg-fade-yellow-500 { background-color: #fef9c3; } .bg-fade-blue-500 { background-color: #dbeafe; }
@@ -102,7 +125,7 @@
         </div>
 
         <div id="manual-entry-form" class="hidden bg-indigo-50 p-4 md:p-6 rounded-lg border border-indigo-200 mt-6">
-             <h2 class="text-xl font-semibold text-indigo-800 mb-4">Manual Entry</h2>
+            <h2 class="text-xl font-semibold text-indigo-800 mb-4">Manual Entry</h2>
             <form id="entry-form">
                 <div class="mb-3">
                     <label for="manual-name" class="block text-sm font-medium text-gray-700 mb-1">Product Name (Optional)</label>
@@ -131,7 +154,7 @@
         </div>
 
         <div id="results-area" class="bg-gray-50 p-4 md:p-6 rounded-lg border border-gray-200 min-h-[150px] mt-6">
-             <div id="status-message" class="text-gray-600 italic mb-4">Click "Scan Barcode" or "Manual Entry".</div>
+            <div id="status-message" class="text-gray-600 italic mb-4">Click "Scan Barcode" or "Manual Entry".</div>
             <div id="product-info" class="hidden space-y-3">
                 <p><strong class="font-medium text-gray-800 w-28 inline-block">Product:</strong> <span id="product-name" class="text-gray-700 font-semibold"></span></p>
                 <div class="flex items-center space-x-3">
@@ -156,9 +179,14 @@
         <div id="history-section" class="mt-8">
             <div class="flex justify-between items-center mb-3">
                 <h2 class="text-xl font-semibold text-gray-700">Scan History</h2>
-                <button id="clear-history-btn" class="text-sm text-red-500 hover:text-red-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                    Clear History
-                </button>
+                <div class="space-x-3">
+                    <button id="manage-history-btn" class="text-sm text-blue-500 hover:text-blue-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Manage History
+                    </button>
+                    <button id="clear-history-btn" class="text-sm text-red-500 hover:text-red-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Clear History
+                    </button>
+                </div>
             </div>
             <div id="history-list" class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-white">
                 <p id="no-history-message" class="text-center text-gray-500 italic p-4">No history yet.</p>
@@ -200,6 +228,7 @@
         const historySection = document.getElementById('history-section');
         const historyList = document.getElementById('history-list');
         const clearHistoryBtn = document.getElementById('clear-history-btn');
+        const manageHistoryBtn = document.getElementById('manage-history-btn');
         const noHistoryMessage = document.getElementById('no-history-message');
 
         // --- State Variables ---
@@ -208,6 +237,7 @@
         let isScanning = false;
         let lastScannedBarcode = null;
         let scanHistory = [];
+        let isDeletingHistoryMode = false;
 
         // --- Local Storage Key ---
         const HISTORY_STORAGE_KEY = 'proteinMeterHistory';
@@ -225,7 +255,7 @@
             let displayPercentage = 0, actualPercentage = 0;
 
             if (isNaN(percentage) || percentage < 0) {
-                 displayPercentage = 0; actualPercentage = 0; // Label remains 'N/A'
+                 displayPercentage = 0; actualPercentage = 0;
             } else {
                 actualPercentage = percentage;
                 displayPercentage = Math.min(actualPercentage, 100);
@@ -249,36 +279,50 @@
          function saveHistory() {
              localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(scanHistory));
              clearHistoryBtn.disabled = scanHistory.length === 0;
+             manageHistoryBtn.disabled = scanHistory.length === 0;
              noHistoryMessage.style.display = scanHistory.length === 0 ? 'block' : 'none';
          }
 
          function addToHistory(item) {
-            // Avoid Duplicate Consecutive History Entries
             if (scanHistory.length > 0) {
                 const mostRecentEntry = scanHistory[0];
-                // Strict equality check for relevant fields
-                if (item.barcode === mostRecentEntry.barcode && // null === null is true, good for manual
+                if (item.barcode === mostRecentEntry.barcode &&
                     item.productName === mostRecentEntry.productName &&
                     item.proteinGrams === mostRecentEntry.proteinGrams &&
                     item.energyKcal === mostRecentEntry.energyKcal &&
                     item.isManual === mostRecentEntry.isManual &&
-                    item.proteinActualPercentage === mostRecentEntry.proteinActualPercentage // Check calculated value too
+                    item.proteinActualPercentage === mostRecentEntry.proteinActualPercentage
                     ) {
                     console.log("Duplicate consecutive entry prevented:", item);
-                    return; // Don't add if it's a duplicate of the last one
+                    return;
                 }
             }
-
             scanHistory.unshift(item);
             saveHistory();
             renderHistory();
          }
+
+         function deleteHistoryItem(itemTimestamp) { // Renamed parameter for clarity
+            scanHistory = scanHistory.filter(item => item.timestamp !== itemTimestamp);
+            saveHistory();
+            renderHistory();
+         }
+
+         function toggleDeleteMode() {
+            isDeletingHistoryMode = !isDeletingHistoryMode;
+            manageHistoryBtn.textContent = isDeletingHistoryMode ? 'Done' : 'Manage History';
+            renderHistory();
+         }
+
 
          function clearHistory() {
              if (confirm("Are you sure you want to clear the entire history?")) {
                  scanHistory = [];
                  saveHistory();
                  renderHistory();
+                 if (isDeletingHistoryMode) {
+                    toggleDeleteMode();
+                 }
              }
          }
          function renderHistory() {
@@ -286,21 +330,41 @@
              if (scanHistory.length === 0) {
                  historyList.appendChild(noHistoryMessage);
                  noHistoryMessage.style.display = 'block';
-                 clearHistoryBtn.disabled = true; return;
+                 clearHistoryBtn.disabled = true;
+                 manageHistoryBtn.disabled = true;
+                 if (isDeletingHistoryMode) {
+                    toggleDeleteMode();
+                 }
+                 return;
              }
              noHistoryMessage.style.display = 'none';
              clearHistoryBtn.disabled = false;
+             manageHistoryBtn.disabled = false;
+
              scanHistory.forEach(item => historyList.appendChild(createHistoryCard(item)));
          }
          function createHistoryCard(item) {
              const card = document.createElement('div');
              card.className = `history-card ${item.fadedColorClass || 'bg-fade-gray-400'}`;
+             if (isDeletingHistoryMode) {
+                card.classList.add('deleting-mode');
+             }
+
+             const summaryWrapper = document.createElement('div');
+             summaryWrapper.className = 'history-summary-wrapper';
+
              const summary = document.createElement('div');
              summary.className = 'history-summary';
              summary.innerHTML = `
                  <span class="font-medium text-sm truncate pr-2">${item.productName || (item.isManual ? 'Manual Entry' : 'N/A')}</span>
                  <span class="text-xs font-semibold whitespace-nowrap">${item.proteinActualPercentage}% ${item.proteinLabel || ''}</span>`;
-             summary.onclick = () => card.classList.toggle('expanded');
+             summary.onclick = () => {
+                if (!isDeletingHistoryMode) {
+                    card.classList.toggle('expanded');
+                }
+             };
+             summaryWrapper.appendChild(summary);
+
              const details = document.createElement('div');
              details.className = 'history-details text-xs space-y-1';
              const unitLabel = item.isManual ? '/ serving' : '/ 100g';
@@ -316,7 +380,28 @@
                  <p><strong class="font-medium text-gray-700 w-20 inline-block">Protein:</strong> <span class="text-gray-600">${item.proteinGrams || 'N/A'} ${unitLabel}</span></p>
                  <p><strong class="font-medium text-gray-700 w-20 inline-block">Calories:</strong> <span class="text-gray-600">${item.energyKcal || 'N/A'} kcal ${unitLabel}</span></p>
                  ${item.errorMessage ? `<p class="text-red-600"><strong class="font-medium text-gray-700 w-20 inline-block">Note:</strong> ${item.errorMessage}</p>` : ''}`;
-             card.appendChild(summary); card.appendChild(details); return card;
+             summaryWrapper.appendChild(details);
+             card.appendChild(summaryWrapper);
+
+             const deleteBtn = document.createElement('button');
+             deleteBtn.className = 'delete-history-item-btn';
+             // Using Lucide XCircle icon SVG
+             deleteBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+             `;
+             deleteBtn.setAttribute('aria-label', 'Delete item');
+             // Ensure correct timestamp is bound to this specific button's click handler
+             deleteBtn.onclick = (event) => {
+                event.stopPropagation();
+                deleteHistoryItem(item.timestamp); // item.timestamp is in scope here
+             };
+             card.appendChild(deleteBtn);
+
+             return card;
          }
 
         // --- UI State Management ---
@@ -411,9 +496,8 @@
                  isManual: false
             };
 
-            updateUICurrentResult(displayData); // Update current display first
+            updateUICurrentResult(displayData);
 
-            // Prevent Errored Entries from Being Saved to History (for scanned data)
             if (!calculationError && proteinInfo.label !== 'N/A') {
                  const historyItem = {
                      barcode: displayData.barcode, productName: displayData.productName,
@@ -428,12 +512,11 @@
             } else {
                 console.log("Errored scanned entry not added to history:", displayData);
             }
-             stopScanning(); // Stop scanning regardless of history add
+             stopScanning();
         }
 
         function updateUIWithScanError(barcode, errorMsg) {
              statusMessage.textContent = `Scan Error: ${errorMsg}. Trying again...`;
-             // Do not add to history on API error
              lastScannedBarcode = null;
         }
 
@@ -502,7 +585,7 @@
             } catch (error) {
                 console.error("Error fetching/processing product data:", error);
                  if (!isScanning && wasScanningWhenFetchStarted) { console.log("Scan stopped during error handling."); return; };
-                updateUIWithScanError(barcode, error.message); // This will NOT add to history
+                updateUIWithScanError(barcode, error.message);
             }
         }
 
@@ -529,15 +612,12 @@
                  proteinGrams: protein.toFixed(1),
                  energyKcal: calories.toFixed(0),
                  barcode: null,
-                 calculationError: null, // No calculation error from valid manual input
+                 calculationError: null,
                  isManual: true
             };
 
-            updateUICurrentResult(displayData); // Update current display
+            updateUICurrentResult(displayData);
 
-            // Prevent Errored Entries from Being Saved to History (for manual data)
-            // An 'errored' manual entry here means the percentage calculation resulted in 'N/A'
-            // which getProteinInfo handles if percentage is NaN (e.g. calories was 0, though validated against)
             if (proteinInfo.label !== 'N/A') {
                  const historyItem = {
                      barcode: displayData.barcode, productName: displayData.productName,
@@ -552,10 +632,8 @@
             } else {
                 console.log("Errored manual entry (label N/A) not added to history:", displayData);
             }
-
-
              manualEntryFormDiv.classList.add('hidden');
-             resultsArea.classList.remove('hidden'); // Ensure results area is visible
+             resultsArea.classList.remove('hidden');
         }
 
         // --- PWA Service Worker Registration ---
@@ -599,6 +677,8 @@
         cancelManualEntryBtn.addEventListener('click', showIdleUI);
         entryForm.addEventListener('submit', handleManualEntrySubmit);
         clearHistoryBtn.addEventListener('click', clearHistory);
+        manageHistoryBtn.addEventListener('click', toggleDeleteMode);
+
 
         // --- Initial Setup ---
         document.addEventListener('DOMContentLoaded', () => {
