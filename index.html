@@ -102,7 +102,7 @@
         </div>
 
         <div id="manual-entry-form" class="hidden bg-indigo-50 p-4 md:p-6 rounded-lg border border-indigo-200 mt-6">
-            <h2 class="text-xl font-semibold text-indigo-800 mb-4">Manual Entry</h2>
+             <h2 class="text-xl font-semibold text-indigo-800 mb-4">Manual Entry</h2>
             <form id="entry-form">
                 <div class="mb-3">
                     <label for="manual-name" class="block text-sm font-medium text-gray-700 mb-1">Product Name (Optional)</label>
@@ -132,7 +132,7 @@
 
         <div id="results-area" class="bg-gray-50 p-4 md:p-6 rounded-lg border border-gray-200 min-h-[150px] mt-6">
              <div id="status-message" class="text-gray-600 italic mb-4">Click "Scan Barcode" or "Manual Entry".</div>
-             <div id="product-info" class="hidden space-y-3">
+            <div id="product-info" class="hidden space-y-3">
                 <p><strong class="font-medium text-gray-800 w-28 inline-block">Product:</strong> <span id="product-name" class="text-gray-700 font-semibold"></span></p>
                 <div class="flex items-center space-x-3">
                     <strong class="font-medium text-gray-800 w-28 inline-block shrink-0">Protein %:</strong>
@@ -150,7 +150,7 @@
                      <p><strong class="font-medium text-gray-800 w-28 inline-block">Calories:</strong> <span id="energy-kcal">N/A</span> kcal <span class="unit-label">/ 100g</span></p>
                  </div>
                  <p id="error-message" class="text-red-600 font-medium pt-2"></p>
-             </div>
+            </div>
         </div>
 
         <div id="history-section" class="mt-8">
@@ -164,7 +164,6 @@
                 <p id="no-history-message" class="text-center text-gray-500 italic p-4">No history yet.</p>
             </div>
         </div>
-
     </div>
 
     <footer class="text-center text-gray-500 text-sm mt-8">
@@ -172,9 +171,8 @@
     </footer>
 
     <script>
-        // --- DOM Elements (Add Install Button) ---
+        // --- DOM Elements ---
         const installPwaBtn = document.getElementById('install-pwa-btn');
-        // ...(keep all other existing DOM element variables)...
         const readerElement = document.getElementById('reader');
         const scanBarcodeBtn = document.getElementById('scan-barcode-btn');
         const manualEntryBtn = document.getElementById('manual-entry-btn');
@@ -204,9 +202,8 @@
         const clearHistoryBtn = document.getElementById('clear-history-btn');
         const noHistoryMessage = document.getElementById('no-history-message');
 
-
-        // --- State Variables (Add deferredPrompt) ---
-        let deferredPrompt; // To store the captured install prompt event
+        // --- State Variables ---
+        let deferredPrompt;
         let html5QrCode = null;
         let isScanning = false;
         let lastScannedBarcode = null;
@@ -228,7 +225,7 @@
             let displayPercentage = 0, actualPercentage = 0;
 
             if (isNaN(percentage) || percentage < 0) {
-                 displayPercentage = 0; actualPercentage = 0;
+                 displayPercentage = 0; actualPercentage = 0; // Label remains 'N/A'
             } else {
                 actualPercentage = percentage;
                 displayPercentage = Math.min(actualPercentage, 100);
@@ -238,7 +235,7 @@
                  else if (actualPercentage < 50) { label = 'Good'; colorClass = 'bg-blue-500'; fadedColorClass = 'bg-fade-blue-500'; }
                  else if (actualPercentage < 70) { label = 'Great'; colorClass = 'bg-green-500'; fadedColorClass = 'bg-fade-green-500'; }
                  else if (actualPercentage <= 100) { label = 'Amazing!'; colorClass = 'bg-purple-600'; fadedColorClass = 'bg-fade-purple-600'; }
-                 else { label = 'Unreal'; colorClass = 'bg-gray-700'; fadedColorClass = 'bg-fade-gray-700'; } // Changed label
+                 else { label = 'Unreal'; colorClass = 'bg-gray-700'; fadedColorClass = 'bg-fade-gray-700'; }
             }
             return { actualPercentage: actualPercentage.toFixed(1), displayPercentage: displayPercentage.toFixed(1), colorClass, fadedColorClass, label };
         }
@@ -254,11 +251,29 @@
              clearHistoryBtn.disabled = scanHistory.length === 0;
              noHistoryMessage.style.display = scanHistory.length === 0 ? 'block' : 'none';
          }
+
          function addToHistory(item) {
-             scanHistory.unshift(item);
-             saveHistory();
-             renderHistory();
+            // Avoid Duplicate Consecutive History Entries
+            if (scanHistory.length > 0) {
+                const mostRecentEntry = scanHistory[0];
+                // Strict equality check for relevant fields
+                if (item.barcode === mostRecentEntry.barcode && // null === null is true, good for manual
+                    item.productName === mostRecentEntry.productName &&
+                    item.proteinGrams === mostRecentEntry.proteinGrams &&
+                    item.energyKcal === mostRecentEntry.energyKcal &&
+                    item.isManual === mostRecentEntry.isManual &&
+                    item.proteinActualPercentage === mostRecentEntry.proteinActualPercentage // Check calculated value too
+                    ) {
+                    console.log("Duplicate consecutive entry prevented:", item);
+                    return; // Don't add if it's a duplicate of the last one
+                }
+            }
+
+            scanHistory.unshift(item);
+            saveHistory();
+            renderHistory();
          }
+
          function clearHistory() {
              if (confirm("Are you sure you want to clear the entire history?")) {
                  scanHistory = [];
@@ -279,8 +294,7 @@
          }
          function createHistoryCard(item) {
              const card = document.createElement('div');
-             // Ensure fadedColorClass exists before applying
-             card.className = `history-card ${item.fadedColorClass || 'bg-fade-gray-400'}`; // Fallback color
+             card.className = `history-card ${item.fadedColorClass || 'bg-fade-gray-400'}`;
              const summary = document.createElement('div');
              summary.className = 'history-summary';
              summary.innerHTML = `
@@ -333,17 +347,7 @@
             errorMessageSpan.textContent = '';
         }
 
-        /**
-         * Updates the main results display area (#product-info)
-         * @param {object} data - Object containing data to display
-         * @param {string} data.productName
-         * @param {object} data.proteinInfo - Result from getProteinInfo()
-         * @param {string | number} data.proteinGrams - Protein value
-         * @param {string | number} data.energyKcal - Calorie value
-         * @param {string | null} data.barcode - Barcode value or null
-         * @param {string | null} data.calculationError - Error message or null
-         * @param {boolean} data.isManual - True if manual entry, false otherwise
-         */
+        /** Updates the main results display area (#product-info) */
         function updateUICurrentResult(data) {
             productNameSpan.textContent = data.productName;
             proteinGramsSpan.textContent = data.proteinGrams === 'N/A' ? 'N/A' : data.proteinGrams;
@@ -377,7 +381,6 @@
             resultsArea.classList.remove('hidden');
         }
 
-
         // --- Update UI Functions (Simplified) ---
         function resetUI() { showIdleUI(); }
 
@@ -408,28 +411,29 @@
                  isManual: false
             };
 
-            updateUICurrentResult(displayData);
+            updateUICurrentResult(displayData); // Update current display first
 
-             const historyItem = {
-                 barcode: displayData.barcode,
-                 productName: displayData.productName,
-                 proteinActualPercentage: proteinInfo.actualPercentage,
-                 proteinDisplayPercentage: proteinInfo.displayPercentage,
-                 proteinLabel: proteinInfo.label,
-                 colorClass: proteinInfo.colorClass,
-                 fadedColorClass: proteinInfo.fadedColorClass, // Ensure this is passed
-                 proteinGrams: displayData.proteinGrams,
-                 energyKcal: displayData.energyKcal,
-                 timestamp: new Date().toISOString(),
-                 errorMessage: displayData.calculationError,
-                 isManual: displayData.isManual
-            };
-             addToHistory(historyItem);
-             stopScanning();
+            // Prevent Errored Entries from Being Saved to History (for scanned data)
+            if (!calculationError && proteinInfo.label !== 'N/A') {
+                 const historyItem = {
+                     barcode: displayData.barcode, productName: displayData.productName,
+                     proteinActualPercentage: proteinInfo.actualPercentage, proteinDisplayPercentage: proteinInfo.displayPercentage,
+                     proteinLabel: proteinInfo.label, colorClass: proteinInfo.colorClass,
+                     fadedColorClass: proteinInfo.fadedColorClass,
+                     proteinGrams: displayData.proteinGrams, energyKcal: displayData.energyKcal,
+                     timestamp: new Date().toISOString(), errorMessage: displayData.calculationError,
+                     isManual: displayData.isManual
+                };
+                 addToHistory(historyItem);
+            } else {
+                console.log("Errored scanned entry not added to history:", displayData);
+            }
+             stopScanning(); // Stop scanning regardless of history add
         }
 
         function updateUIWithScanError(barcode, errorMsg) {
              statusMessage.textContent = `Scan Error: ${errorMsg}. Trying again...`;
+             // Do not add to history on API error
              lastScannedBarcode = null;
         }
 
@@ -437,7 +441,6 @@
         // --- Scanning Callbacks ---
         const qrCodeSuccessCallback = (decodedText, decodedResult) => {
             if (isScanning && decodedText && decodedText !== lastScannedBarcode) {
-                console.log(`Code matched = ${decodedText}`, decodedResult);
                 lastScannedBarcode = decodedText;
                 statusMessage.textContent = `Barcode detected: ${decodedText}. Fetching data...`;
                 errorMessageSpan.textContent = '';
@@ -499,7 +502,7 @@
             } catch (error) {
                 console.error("Error fetching/processing product data:", error);
                  if (!isScanning && wasScanningWhenFetchStarted) { console.log("Scan stopped during error handling."); return; };
-                updateUIWithScanError(barcode, error.message);
+                updateUIWithScanError(barcode, error.message); // This will NOT add to history
             }
         }
 
@@ -526,88 +529,68 @@
                  proteinGrams: protein.toFixed(1),
                  energyKcal: calories.toFixed(0),
                  barcode: null,
-                 calculationError: null,
+                 calculationError: null, // No calculation error from valid manual input
                  isManual: true
             };
 
-            updateUICurrentResult(displayData);
+            updateUICurrentResult(displayData); // Update current display
 
-             const historyItem = {
-                 barcode: displayData.barcode,
-                 productName: displayData.productName,
-                 proteinActualPercentage: proteinInfo.actualPercentage,
-                 proteinDisplayPercentage: proteinInfo.displayPercentage,
-                 proteinLabel: proteinInfo.label,
-                 colorClass: proteinInfo.colorClass,
-                 fadedColorClass: proteinInfo.fadedColorClass, // Ensure this is passed
-                 proteinGrams: displayData.proteinGrams,
-                 energyKcal: displayData.energyKcal,
-                 timestamp: new Date().toISOString(),
-                 errorMessage: displayData.calculationError,
-                 isManual: displayData.isManual
-            };
-             addToHistory(historyItem);
+            // Prevent Errored Entries from Being Saved to History (for manual data)
+            // An 'errored' manual entry here means the percentage calculation resulted in 'N/A'
+            // which getProteinInfo handles if percentage is NaN (e.g. calories was 0, though validated against)
+            if (proteinInfo.label !== 'N/A') {
+                 const historyItem = {
+                     barcode: displayData.barcode, productName: displayData.productName,
+                     proteinActualPercentage: proteinInfo.actualPercentage, proteinDisplayPercentage: proteinInfo.displayPercentage,
+                     proteinLabel: proteinInfo.label, colorClass: proteinInfo.colorClass,
+                     fadedColorClass: proteinInfo.fadedColorClass,
+                     proteinGrams: displayData.proteinGrams, energyKcal: displayData.energyKcal,
+                     timestamp: new Date().toISOString(), errorMessage: displayData.calculationError,
+                     isManual: displayData.isManual
+                };
+                 addToHistory(historyItem);
+            } else {
+                console.log("Errored manual entry (label N/A) not added to history:", displayData);
+            }
+
 
              manualEntryFormDiv.classList.add('hidden');
-             resultsArea.classList.remove('hidden');
+             resultsArea.classList.remove('hidden'); // Ensure results area is visible
         }
 
         // --- PWA Service Worker Registration ---
         function registerServiceWorker() {
           if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-              navigator.serviceWorker.register('./service-worker.js') // Path relative to index.html
-                .then(registration => {
-                  console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                })
-                .catch(error => {
-                  console.log('ServiceWorker registration failed: ', error);
-                });
+              navigator.serviceWorker.register('./service-worker.js')
+                .then(registration => console.log('ServiceWorker registration successful with scope: ', registration.scope))
+                .catch(error => console.log('ServiceWorker registration failed: ', error));
             });
-          } else {
-            console.log('Service workers are not supported by this browser.');
-          }
+          } else { console.log('Service workers are not supported.'); }
         }
 
         // --- PWA Install Button Logic ---
         function setupInstallButton() {
             window.addEventListener('beforeinstallprompt', (e) => {
-                // Prevent Chrome 67 and earlier from automatically showing the prompt
                 e.preventDefault();
-                // Stash the event so it can be triggered later.
                 deferredPrompt = e;
-                // Update UI to notify the user they can add to home screen
-                installPwaBtn.classList.remove('hidden'); // Show the button
+                installPwaBtn.classList.remove('hidden');
                 console.log('`beforeinstallprompt` event was fired.');
             });
-
             installPwaBtn.addEventListener('click', async () => {
-                // Hide the app provided install promotion
                 installPwaBtn.classList.add('hidden');
-                // Show the install prompt
-                if (!deferredPrompt) {
-                    console.log("Install prompt event not available.");
-                    return; // Exit if the event wasn't captured
-                }
+                if (!deferredPrompt) { console.log("Install prompt event not available."); return; }
                 deferredPrompt.prompt();
-                // Wait for the user to respond to the prompt
                 const { outcome } = await deferredPrompt.userChoice;
                 console.log(`User response to the install prompt: ${outcome}`);
-                // We've used the prompt, and can't use it again, discard it
                 deferredPrompt = null;
             });
-
             window.addEventListener('appinstalled', () => {
-                // Hide the app provided install promotion
                 installPwaBtn.classList.add('hidden');
-                // Clear the deferredPrompt so it can be garbage collected
                 deferredPrompt = null;
-                // Optionally, send analytics event to indicate successful install
                 console.log('PWA was installed');
-                // You might want to update the UI further, e.g., remove install button permanently
             });
         }
-
 
         // --- Event Listeners ---
         scanBarcodeBtn.addEventListener('click', startScanning);
@@ -616,7 +599,6 @@
         cancelManualEntryBtn.addEventListener('click', showIdleUI);
         entryForm.addEventListener('submit', handleManualEntrySubmit);
         clearHistoryBtn.addEventListener('click', clearHistory);
-        // Note: Install button listener is added in setupInstallButton()
 
         // --- Initial Setup ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -624,8 +606,9 @@
             loadHistory();
             resetUI();
             registerServiceWorker();
-            setupInstallButton(); // Set up the install button logic
+            setupInstallButton();
         });
+
     </script>
 
 </body>
