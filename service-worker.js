@@ -1,12 +1,13 @@
-const CACHE_NAME = 'protein-meter-cache-v2';
-// List of files to cache initially
+const CACHE_NAME = 'protein-meter-cache-v3';
+
 const urlsToCache = [
-  './', // The root path, which serves index.html
-  './index.html', // Explicitly cache index.html
-  'https://cdn.tailwindcss.com', // Tailwind CSS
-  'https://unpkg.com/html5-qrcode', // html5-qrcode library
-  './app-icon.svg', // Add the SVG icon
-  './manifest.json' // Good practice to cache the manifest too
+  './',
+  './index.html',
+  'https://cdn.tailwindcss.com',
+  'https://unpkg.com/html5-qrcode',
+  './app-icon.svg',
+  './apple-touch-icon.png',
+  './manifest.json'
 ];
 
 // --- Installation Event ---
