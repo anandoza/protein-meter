@@ -541,7 +541,7 @@
 
             errorMessageSpan.textContent = data.calculationError || '';
             statusMessage.textContent = data.calculationError ? 'Product data processed, calculation incomplete.' : 'Product data processed.';
-            if (!data.isManual) { statusMessage.textContent += ' Scan stopped.'; }
+            if (data.sourceOperation === 'scan') { statusMessage.textContent += ' Scan stopped.'; }
 
             productInfoDiv.classList.remove('hidden');
             resultsArea.classList.remove('hidden');
@@ -550,7 +550,7 @@
         // --- Update UI Functions (Simplified) ---
         function resetUI() { showIdleUI(); }
 
-        function updateUIWithScannedData(barcode, product) {
+        function updateUIWithScannedData(barcode, product, sourceOperation) {
             const nutriments = product.nutriments || {};
             const productName = product.product_name || product.generic_name || 'N/A';
             const protein100g = parseFloat(nutriments.proteins_100g);
@@ -574,7 +574,8 @@
                  energyKcal: isNaN(energyKcal100g) ? 'N/A' : energyKcal100g.toFixed(0),
                  barcode: barcode,
                  calculationError: calculationError,
-                 isManual: false
+                 isManual: false,
+                 sourceOperation: sourceOperation // Add sourceOperation here
             };
 
             updateUICurrentResult(displayData);
@@ -649,24 +650,43 @@
         }
 
         // --- Fetch Data from Open Food Facts ---
-        async function fetchProductData(barcode) {
+        async function fetchProductData(barcode, sourceOperation = 'scan') {
             const wasScanningWhenFetchStarted = isScanning;
             const apiUrl = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,generic_name,nutriments`;
             try {
                 const response = await fetch(apiUrl);
-                 if (!isScanning && wasScanningWhenFetchStarted) { console.log("Scan stopped during fetch."); return; };
+                 if (!isScanning && wasScanningWhenFetchStarted && sourceOperation === 'scan') { console.log("Scan stopped during fetch."); return; };
                 if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
                 const data = await response.json();
-                 if (!isScanning && wasScanningWhenFetchStarted) { console.log("Scan stopped during parse."); return; };
+                 if (!isScanning && wasScanningWhenFetchStarted && sourceOperation === 'scan') { console.log("Scan stopped during parse."); return; };
                 if (data.status === 1 && data.product) {
-                    updateUIWithScannedData(barcode, data.product);
+                    updateUIWithScannedData(barcode, data.product, sourceOperation);
                 } else {
                     throw new Error(data.status_verbose || 'Product not found');
                 }
             } catch (error) {
                 console.error("Error fetching/processing product data:", error);
-                 if (!isScanning && wasScanningWhenFetchStarted) { console.log("Scan stopped during error handling."); return; };
-                updateUIWithScanError(barcode, error.message);
+                 if (!isScanning && wasScanningWhenFetchStarted && sourceOperation === 'scan') { console.log("Scan stopped during error handling."); return; };
+                // For non-scan operations (like search result click), we want to show the error on the main product page
+                if (sourceOperation !== 'scan') {
+                    productNameSpan.textContent = '';
+                    proteinGramsSpan.textContent = 'N/A';
+                    energyKcalSpan.textContent = 'N/A';
+                    proteinBar.style.width = `0%`;
+                    proteinBar.textContent = `0%`;
+                    proteinBar.className = 'percentage-bar-fill bg-gray-400';
+                    proteinLabel.textContent = 'Error';
+                    barcodeResultSpan.textContent = barcode;
+                    offLink.href = `https://world.openfoodfacts.org/product/${barcode}`;
+                    offLink.classList.remove('hidden');
+                    barcodeRow.classList.remove('hidden'); // Show barcode row even on error for context
+                    errorMessageSpan.textContent = `Failed to fetch product data: ${error.message}. Please try again.`;
+                    statusMessage.textContent = 'Error fetching product details.';
+                    productInfoDiv.classList.remove('hidden');
+                    resultsArea.classList.remove('hidden'); // Ensure this is visible
+                } else { // Original behavior for scan errors
+                    updateUIWithScanError(barcode, error.message);
+                }
             }
         }
 
@@ -840,7 +860,7 @@
                         errorMessageSpan.textContent = ''; // Clear previous error messages
 
                         statusMessage.textContent = `Fetching details for product code: ${barcodeFromSearch}...`;
-                        fetchProductData(barcodeFromSearch); // Existing function to fetch and display product details
+                        fetchProductData(barcodeFromSearch, 'search'); // Specify sourceOperation as 'search'
                     } else {
                         console.error("Barcode not found on search result item.");
                         statusMessage.textContent = 'Error: Could not retrieve product code.';
