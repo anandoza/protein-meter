@@ -122,13 +122,13 @@
 
         <div id="reader" class="mx-auto mb-4 inactive"></div>
         <div class="text-center mb-6 space-x-2">
-             <button id="scan-barcode-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md">
+             <button id="scan-barcode-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md mb-2">
                 Scan Barcode
             </button>
-             <button id="manual-entry-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md">
+             <button id="manual-entry-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md mb-2">
                 Manual Entry
             </button>
-            <button id="search-food-btn" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md">Search Food</button>
+            <button id="search-food-btn" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md mb-2">Search Food</button>
              <button id="stop-scan-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden transition duration-300 ease-in-out shadow hover:shadow-md">
                 Stop Scanning
             </button>
@@ -212,6 +212,13 @@
         </div>
 
         <div id="search-results-area" class="bg-gray-50 p-4 md:p-6 rounded-lg border border-gray-200 min-h-[100px] mt-6 hidden">
+            <div id="search-spinner" class="hidden text-center p-4">
+                <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-indigo-600 mt-2 text-sm">Searching...</p>
+            </div>
             <p id="no-search-results-message" class="text-center text-gray-500 italic p-4">Type a food name and click search.</p>
             <div id="search-results-list">
                 <!-- Search results will be injected here -->
@@ -284,6 +291,7 @@
         const searchResultsArea = document.getElementById('search-results-area');
         const noSearchResultsMessage = document.getElementById('no-search-results-message');
         const searchResultsList = document.getElementById('search-results-list');
+        const searchSpinner = document.getElementById('search-spinner');
 
         // --- State Variables ---
         let deferredPrompt;
@@ -785,15 +793,15 @@
 
         // --- Search Functionality ---
         async function fetchSearchResults(query) {
-            statusMessage.textContent = 'Searching...';
+            statusMessage.textContent = 'Searching...'; // General status
             searchErrorMessage.classList.add('hidden');
-            noSearchResultsMessage.textContent = 'Searching...';
-            noSearchResultsMessage.style.display = 'block';
-            searchResultsList.innerHTML = '';
+            searchResultsList.innerHTML = ''; // Clear previous results
+            noSearchResultsMessage.style.display = 'none'; // Hide placeholder/error messages
+            searchSpinner.classList.remove('hidden'); // Show spinner
             performSearchBtn.disabled = true;
             cancelSearchBtn.disabled = true;
 
-            const apiUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=20`;
+            const apiUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=20&sort_by=product_name`;
 
             try {
                 const response = await fetch(apiUrl);
@@ -816,11 +824,12 @@
                 console.error("Fetch search error:", error);
                 searchErrorMessage.textContent = `Search failed: ${error.message}. Check connection or try again.`;
                 searchErrorMessage.classList.remove('hidden');
-                noSearchResultsMessage.textContent = 'Search error occurred.';
+                noSearchResultsMessage.textContent = 'Search error occurred.'; // This will be shown after spinner hides
                 noSearchResultsMessage.style.display = 'block';
                 searchResultsList.innerHTML = '';
                 statusMessage.textContent = 'Search error.';
             } finally {
+                searchSpinner.classList.add('hidden'); // Hide spinner
                 performSearchBtn.disabled = false;
                 cancelSearchBtn.disabled = false;
             }
