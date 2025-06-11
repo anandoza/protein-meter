@@ -801,7 +801,7 @@
             performSearchBtn.disabled = true;
             cancelSearchBtn.disabled = true;
 
-            const apiUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=20&sort_by=product_name`;
+            const apiUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=20`;
 
             try {
                 const response = await fetch(apiUrl);
