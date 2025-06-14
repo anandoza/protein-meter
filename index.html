@@ -113,6 +113,13 @@
         /* Hide barcode row specifically */
         #barcode-row.hidden { display: none; }
 
+        #comparison-canvas-container canvas {
+            max-width: 100%; /* Scale down to fit container width */
+            height: auto;    /* Maintain aspect ratio */
+            display: block;  /* For centering and proper layout */
+            margin-left: auto; /* Center horizontally */
+            margin-right: auto;/* Center horizontally */
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans flex flex-col items-center min-h-screen p-4">
@@ -999,7 +1006,7 @@
                 canvas.width = baseCanvasWidth * scaleFactor;
                 canvas.height = (numItems * baseRowHeight + (numItems + 1) * basePaddingVertical) * scaleFactor;
 
-                ctx.fillStyle = '#FFFFFF';
+                ctx.fillStyle = '#f7f7f7'; // Softer off-white background
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                 // Apply scaleFactor to all base dimensions for drawing
@@ -1020,9 +1027,9 @@
 
                     // Product Name
                     ctx.fillStyle = '#333333';
-                    ctx.font = `bold ${15 * scaleFactor}px Arial`; // Updated base font size to 15
+                    ctx.font = `bold ${15 * scaleFactor}px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif`;
                     ctx.textAlign = 'left';
-                    ctx.textBaseline = 'top'; // Ensure textBaseline is 'top' for this positioning
+                    ctx.textBaseline = 'top';
 
                     const productName = item.productName || (item.isManual ? 'Manual Entry' : 'N/A');
                     let displayName = productName;
@@ -1042,17 +1049,35 @@
                     // ctx.fillRect(barStartX, itemRowStartY + (rowHeight - barHeight) / 2, barMaxLength, barHeight);
 
                     const barFillWidth = ((parseFloat(item.proteinDisplayPercentage) || 0) / 100) * barMaxLength;
-                    const colorMap = { 'bg-red-500': '#ef4444', 'bg-yellow-500': '#eab308', 'bg-blue-500': '#3b82f6', 'bg-green-500': '#22c55e', 'bg-purple-600': '#9333ea', 'bg-gray-500': '#6b7280', 'bg-gray-700':'#374151', 'bg-gray-400':'#9ca3af' };
-                    ctx.fillStyle = colorMap[proteinInfo.colorClass] || '#6b7280';
-                    ctx.fillRect(barStartX, itemRowStartY + (rowHeight - barHeight) / 2, barFillWidth, barHeight);
+                    const barActualY = itemRowStartY + (rowHeight - barHeight) / 2;
+                    const barFillColor = colorMap[proteinInfo.colorClass] || '#6b7280';
+                    const barCornerRadius = Math.min(5 * scaleFactor, barHeight / 2);
+
+                    const effectiveBarFillWidth = Math.max(0, barFillWidth);
+                    const effectiveBarHeight = Math.max(0, barHeight);
+
+                    if (effectiveBarFillWidth > 0 && effectiveBarHeight > 0) {
+                        drawRoundedRect(ctx, barStartX, barActualY, effectiveBarFillWidth, effectiveBarHeight, barCornerRadius, barFillColor);
+                    }
 
                     // Percentage Text (next to bar)
                     const percentageText = `${item.proteinActualPercentage}% ${proteinInfo.label}`;
                     ctx.fillStyle = '#333333';
-                    ctx.font = `normal ${12 * scaleFactor}px Arial`; // Scaled font
+                    ctx.font = `normal ${12 * scaleFactor}px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif`;
                     ctx.textAlign = 'left';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(percentageText, barStartX + barMaxLength + (15 * scaleFactor), itemRowStartY + rowHeight / 2); // Increased spacing
+                    ctx.fillText(percentageText, barStartX + barMaxLength + (15 * scaleFactor), itemRowStartY + rowHeight / 2);
+
+                    // Row Separator
+                    if (i < numItems - 1) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = '#dddddd';
+                        ctx.lineWidth = (1 * scaleFactor);
+                        const lineY = itemRowStartY + rowHeight + (paddingVertical / 2);
+                        ctx.moveTo(paddingHorizontal, lineY);
+                        ctx.lineTo(canvas.width - paddingHorizontal, lineY);
+                        ctx.stroke();
+                    }
 
                     currentY += rowHeight + paddingVertical;
                 }
@@ -1084,6 +1109,23 @@
         }
 
         // function drawPlaceholderImage(ctx, x, y, size) { /* ... */ } // REMOVED
+
+        function drawRoundedRect(ctx, x, y, width, height, radius, color) {
+            if (width < 2 * radius) radius = width / 2;
+            if (height < 2 * radius) radius = height / 2;
+            if (radius < 0) radius = 0;
+            if (width <= 0 || height <= 0) return;
+
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.arcTo(x + width, y, x + width, y + height, radius);
+            ctx.arcTo(x + width, y + height, x, y + height, radius);
+            ctx.arcTo(x, y + height, x, y, radius);
+            ctx.arcTo(x, y, x + width, y, radius);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
 
         // --- Search Functionality ---
         async function fetchSearchResults(query) {
