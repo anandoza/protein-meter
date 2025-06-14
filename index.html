@@ -404,20 +404,11 @@
          }
 
          function toggleDeleteMode() {
-            isDeletingHistoryMode = !isDeletingHistoryMode;
-            manageHistoryBtn.textContent = isDeletingHistoryMode ? 'Done' : 'Manage History';
-            if (isDeletingHistoryMode && scanHistory.length > 0) {
-                clearAllBtn.classList.remove('hidden');
-            } else {
-                clearAllBtn.classList.add('hidden');
+            if (!isDeletingHistoryMode && isComparisonMode) { // True if trying to enter delete mode while comparison mode is active
+                isComparisonMode = false; // Just update the state variable
+                selectedForComparison = []; // Clear selections if comparison mode is being turned off
             }
-
-            // If deleting mode is activated, and comparison mode is also active, turn off comparison mode
-            if (isDeletingHistoryMode && isComparisonMode) {
-                toggleComparisonMode(); // This will set isComparisonMode to false and update UI
-            }
-            // Also, disable compareModeBtn when entering delete mode
-            compareModeBtn.disabled = isDeletingHistoryMode || scanHistory.length === 0;
+            isDeletingHistoryMode = !isDeletingHistoryMode; // Toggle the primary state
 
             renderHistory();
          }
@@ -442,42 +433,88 @@
             manageHistoryBtn.textContent = isDeletingHistoryMode ? 'Done' : 'Manage History';
 
             // Corrected disabled logic for manageHistoryBtn
-            manageHistoryBtn.disabled = isComparisonMode || (!isDeletingHistoryMode && scanHistory.length === 0);
+            // Manage History Button visibility and state
+            if (isComparisonMode) {
+                manageHistoryBtn.classList.add('hidden');
+            } else {
+                manageHistoryBtn.classList.remove('hidden');
+                manageHistoryBtn.textContent = isDeletingHistoryMode ? 'Done' : 'Manage History';
+                // Disabled if not in delete mode AND history is empty
+                manageHistoryBtn.disabled = (!isDeletingHistoryMode && scanHistory.length === 0);
+            }
 
-            clearAllBtn.classList.toggle('hidden', !(isDeletingHistoryMode && scanHistory.length > 0));
-            compareModeBtn.disabled = isDeletingHistoryMode || scanHistory.length === 0;
-
-             if (scanHistory.length === 0) {
-                 historyList.appendChild(noHistoryMessage);
-                 noHistoryMessage.style.display = 'block';
-                 // manageHistoryBtn.disabled = true; // Already handled above
-                 clearAllBtn.classList.add('hidden');
-                compareModeBtn.classList.remove('text-red-500', 'hover:text-red-700'); // Ensure correct color if mode was active
-                compareModeBtn.classList.add('text-green-500', 'hover:text-green-700');
-                compareModeBtn.textContent = 'Start Comparison';
-                comparisonActionsDiv.classList.add('hidden');
-                if (isComparisonMode) { // If comparison mode was active and history cleared
-                    isComparisonMode = false; // Turn it off
+            // Compare Mode Button visibility and state
+            if (isDeletingHistoryMode) {
+                compareModeBtn.classList.add('hidden');
+            } else {
+                compareModeBtn.classList.remove('hidden');
+                // Set text and color based on whether we are in comparison mode or not
+                if (isComparisonMode) {
+                    compareModeBtn.textContent = 'Cancel Comparison';
+                    compareModeBtn.classList.remove('text-green-500', 'hover:text-green-700');
+                    compareModeBtn.classList.add('text-red-500', 'hover:text-red-700');
+                } else {
+                    compareModeBtn.textContent = 'Start Comparison';
+                    compareModeBtn.classList.remove('text-red-500', 'hover:text-red-700');
+                    compareModeBtn.classList.add('text-green-500', 'hover:text-green-700');
                 }
-                 if (isDeletingHistoryMode) { // If delete mode was active and history cleared
-                    isDeletingHistoryMode = false; // Turn it off
-                    manageHistoryBtn.textContent = 'Manage History';
-                 }
-                 return;
-             }
-             noHistoryMessage.style.display = 'none';
-             // manageHistoryBtn.disabled = false; // Already handled above
-             if (isDeletingHistoryMode) {
-                 clearAllBtn.classList.remove('hidden');
-             } else {
-                 clearAllBtn.classList.add('hidden');
-             }
+                // Disabled if not in comparison mode AND history is empty
+                compareModeBtn.disabled = (!isComparisonMode && scanHistory.length === 0);
+            }
+
+            // Clear All button visibility (this should remain as it was, shown only in delete mode with items)
+            clearAllBtn.classList.toggle('hidden', !(isDeletingHistoryMode && scanHistory.length > 0));
+
+            // Comparison actions div (generate button) visibility
+            comparisonActionsDiv.classList.toggle('hidden', !isComparisonMode);
+            if (isComparisonMode) { // If comparison mode is active, ensure generate button state is correct
+                 generateComparisonImageBtn.disabled = selectedForComparison.length < 2;
+            }
+
+
+            // Handling of scanHistory.length === 0 (should be at the end of button/UI updates for modes)
+            if (scanHistory.length === 0) {
+                noHistoryMessage.style.display = 'block';
+                historyList.innerHTML = ''; // Clear any cards
+                historyList.appendChild(noHistoryMessage);
+
+                // If history is empty, both modes should effectively be off.
+                // Ensure state variables are false if they somehow were true.
+                if (isComparisonMode) isComparisonMode = false;
+                if (isDeletingHistoryMode) isDeletingHistoryMode = false;
+
+                // Reset Manage History button
+                manageHistoryBtn.classList.remove('hidden');
+                manageHistoryBtn.textContent = 'Manage History';
+                manageHistoryBtn.disabled = true;
+
+                // Reset Compare Mode button
+                compareModeBtn.classList.remove('hidden');
+                compareModeBtn.textContent = 'Start Comparison';
+                compareModeBtn.classList.remove('text-red-500', 'hover:text-red-700');
+                compareModeBtn.classList.add('text-green-500', 'hover:text-green-700');
+                compareModeBtn.disabled = true;
+
+                clearAllBtn.classList.add('hidden');
+                comparisonActionsDiv.classList.add('hidden');
+
+                // No cards to render, so return
+                return;
+            } else {
+                noHistoryMessage.style.display = 'none';
+            }
+
+            // Filter selectedForComparison to remove any items no longer in scanHistory (if comparison mode is active)
+            // This was previously at the end, but should be done before rendering cards if it affects checkbox states.
+            // However, createHistoryCard itself checks against selectedForComparison, so filtering here is mainly for generateBtn state.
+            // Let's keep it after card rendering, just before returning if not empty, or if it's tied to generateBtn state.
+            // The current placement (after card rendering, as per previous version) is fine for generateBtn state.
+            // The subtask description for renderHistory didn't specify moving this filter, so we'll assume it's fine.
 
              scanHistory.forEach(item => historyList.appendChild(createHistoryCard(item)));
 
-            // Inside renderHistory, after scanHistory.forEach or if scanHistory becomes empty
+            // This was the previous location for this block. It's fine here.
             if (isComparisonMode) {
-                // Filter selectedForComparison to remove any items no longer in scanHistory
                 const currentHistoryTimestamps = new Set(scanHistory.map(hItem => hItem.timestamp));
                 selectedForComparison = selectedForComparison.filter(selItem => currentHistoryTimestamps.has(selItem.timestamp));
                 generateComparisonImageBtn.disabled = selectedForComparison.length < 2;
@@ -485,33 +522,21 @@
          }
 
         function toggleComparisonMode() {
-            isComparisonMode = !isComparisonMode;
-            selectedForComparison = []; // Clear selections when toggling mode
+            if (!isComparisonMode && isDeletingHistoryMode) { // True if trying to enter comparison mode while delete mode is active
+                isDeletingHistoryMode = false; // Just update the state variable; renderHistory will handle UI
+            }
+            isComparisonMode = !isComparisonMode; // Toggle the primary state
 
             if (isComparisonMode) {
+                selectedForComparison = []; // Clear selections when entering mode
+                // Update button text/color immediately for better responsiveness, renderHistory will also affirm this
                 compareModeBtn.textContent = 'Cancel Comparison';
                 compareModeBtn.classList.remove('text-green-500', 'hover:text-green-700');
                 compareModeBtn.classList.add('text-red-500', 'hover:text-red-700');
-                comparisonActionsDiv.classList.remove('hidden');
-                generateComparisonImageBtn.disabled = true; // Always disable when first entering mode
-
-                // If deleting mode is active, turn it off
-                if (isDeletingHistoryMode) {
-                    // Directly manage isDeletingHistoryMode and button text here to avoid re-triggering renderHistory from toggleDeleteMode
-                    isDeletingHistoryMode = false;
-                    manageHistoryBtn.textContent = 'Manage History';
-                    clearAllBtn.classList.add('hidden');
-                    // No need to call renderHistory() yet, it's called at the end of this function.
-                }
-                manageHistoryBtn.disabled = true; // Disable manage history while in comparison mode
             } else {
-                compareModeBtn.textContent = 'Start Comparison';
-                compareModeBtn.classList.remove('text-red-500', 'hover:text-red-700');
-                compareModeBtn.classList.add('text-green-500', 'hover:text-green-700');
-                comparisonActionsDiv.classList.add('hidden');
-                // manageHistoryBtn.disabled is handled by renderHistory based on modes and scanHistory.length
+                 // On exiting, renderHistory will set the correct text/color for compareModeBtn
             }
-            renderHistory(); // Re-render history to show/hide checkboxes (checkbox logic will be added in next step)
+            renderHistory();
         }
 
          function createHistoryCard(item) {
