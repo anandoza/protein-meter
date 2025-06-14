@@ -975,82 +975,86 @@
             downloadComparisonBtn.disabled = true; // Disable download button until canvas is ready
 
             try {
+                const scaleFactor = 2; // For 2x resolution
+
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 const numItems = itemsToCompare.length;
-                const itemWidth = 200;
-                const itemHeight = 200; // Adjusted height after removing thumbnails
-                const padding = 20;
-                const barHeight = 20;
-                // const thumbnailSize = 80; // REMOVED
 
-                canvas.width = numItems * itemWidth + (numItems + 1) * padding;
-                canvas.height = itemHeight + 2 * padding; // Adjusted canvas height based on new itemHeight
+                // New base dimensions for vertical layout
+                const baseRowHeight = 60;         // Height for each item's row
+                const basePaddingVertical = 15;   // Vertical padding between rows and at top/bottom
+                const basePaddingHorizontal = 20; // Horizontal padding at left/right of canvas
+                const baseProductNameLeftMargin = 10; // Margin for product name from the left edge of its "column"
+                const baseProductNameMaxWidth = 250;  // Max width for product name text before wrapping/truncating
+                const baseBarStartX = baseProductNameLeftMargin + baseProductNameMaxWidth + 30; // X-pos where protein bars start
+                const baseBarHeight = 25;          // Height of the protein bar itself
+                const baseBarMaxLength = 300;     // Max length of a 100% protein bar
+                const basePercentageTextWidth = 100; // Estimated width needed for "XX.X% Label" text next to bar
+
+                // Calculate required canvas width based on new layout
+                const baseCanvasWidth = baseBarStartX + baseBarMaxLength + basePercentageTextWidth + basePaddingHorizontal + baseProductNameLeftMargin; // Added baseProductNameLeftMargin for overall width calculation
+
+                // Scaled dimensions for canvas
+                canvas.width = baseCanvasWidth * scaleFactor;
+                canvas.height = (numItems * baseRowHeight + (numItems + 1) * basePaddingVertical) * scaleFactor;
 
                 ctx.fillStyle = '#FFFFFF';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+                // Apply scaleFactor to all base dimensions for drawing
+                const rowHeight = baseRowHeight * scaleFactor;
+                const paddingVertical = basePaddingVertical * scaleFactor;
+                const paddingHorizontal = basePaddingHorizontal * scaleFactor;
+                const productNameLeftMargin = baseProductNameLeftMargin * scaleFactor;
+                const productNameMaxWidth = baseProductNameMaxWidth * scaleFactor;
+                const barStartX = baseBarStartX * scaleFactor;
+                const barHeight = baseBarHeight * scaleFactor;
+                const barMaxLength = baseBarMaxLength * scaleFactor;
+
+                let currentY = paddingVertical; // Start Y for the first item
 
                 for (let i = 0; i < numItems; i++) {
                     const item = itemsToCompare[i];
-                    const startX = padding + i * (itemWidth + padding);
-                    const startY = padding;
-
-                    // Item card background
-                    ctx.fillStyle = '#f9f9f9';
-                    ctx.fillRect(startX, startY, itemWidth, itemHeight); // Use new itemHeight
-                    ctx.strokeStyle = '#e0e0e0';
-                    ctx.strokeRect(startX, startY, itemWidth, itemHeight);
+                    const itemRowStartY = currentY;
 
                     // Product Name
                     ctx.fillStyle = '#333333';
-                    ctx.font = 'bold 14px Arial';
-                    ctx.textAlign = 'center';
+                    ctx.font = `bold ${15 * scaleFactor}px Arial`; // Updated base font size to 15
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top'; // Ensure textBaseline is 'top' for this positioning
+
                     const productName = item.productName || (item.isManual ? 'Manual Entry' : 'N/A');
-                    const maxTextWidth = itemWidth - 10;
-                    let lines = [];
-                    let currentLine = '';
-                    const words = productName.split(' ');
-                    for (const word of words) {
-                        const testLine = currentLine + word + ' ';
-                        const metrics = ctx.measureText(testLine);
-                        if (metrics.width > maxTextWidth && currentLine !== '') {
-                            lines.push(currentLine.trim());
-                            currentLine = word + ' ';
-                        } else {
-                            currentLine = testLine;
-                        }
+                    let displayName = productName;
+                    let nameMetrics = ctx.measureText(displayName);
+                    while (nameMetrics.width > productNameMaxWidth && displayName.length > 10) {
+                        displayName = displayName.substring(0, displayName.length - 4) + "...";
+                        nameMetrics = ctx.measureText(displayName);
                     }
-                    lines.push(currentLine.trim());
-                    let textY = startY + 20;
-                    for (const line of lines.slice(0,2)) {
-                         ctx.fillText(line, startX + itemWidth / 2, textY);
-                         textY += 16;
-                    }
+                    const productNameY = itemRowStartY + (5 * scaleFactor); // Position text 5px (base) from top of row area
+                    ctx.fillText(displayName, paddingHorizontal + productNameLeftMargin, productNameY);
 
-                    // REMOVED Thumbnail Image drawing block
-
-                    // Protein Percentage Bar - New Y position
-                    const barY = textY + 15; // Position bar 15px below the product name.
+                    // Protein Percentage Bar
                     const proteinInfo = getProteinInfo(parseFloat(item.proteinActualPercentage));
-                    ctx.fillStyle = '#e0e0e0';
-                    ctx.fillRect(startX + 10, barY, itemWidth - 20, barHeight);
-                    const barFillWidth = ((parseFloat(item.proteinDisplayPercentage) || 0) / 100) * (itemWidth - 20);
+
+                    // Commented out bar background track for a cleaner look
+                    // ctx.fillStyle = '#e0e0e0';
+                    // ctx.fillRect(barStartX, itemRowStartY + (rowHeight - barHeight) / 2, barMaxLength, barHeight);
+
+                    const barFillWidth = ((parseFloat(item.proteinDisplayPercentage) || 0) / 100) * barMaxLength;
                     const colorMap = { 'bg-red-500': '#ef4444', 'bg-yellow-500': '#eab308', 'bg-blue-500': '#3b82f6', 'bg-green-500': '#22c55e', 'bg-purple-600': '#9333ea', 'bg-gray-500': '#6b7280', 'bg-gray-700':'#374151', 'bg-gray-400':'#9ca3af' };
                     ctx.fillStyle = colorMap[proteinInfo.colorClass] || '#6b7280';
-                    ctx.fillRect(startX + 10, barY, barFillWidth, barHeight);
+                    ctx.fillRect(barStartX, itemRowStartY + (rowHeight - barHeight) / 2, barFillWidth, barHeight);
 
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 12px Arial';
-                    ctx.textAlign = 'center';
+                    // Percentage Text (next to bar)
+                    const percentageText = `${item.proteinActualPercentage}% ${proteinInfo.label}`;
+                    ctx.fillStyle = '#333333';
+                    ctx.font = `normal ${12 * scaleFactor}px Arial`; // Scaled font
+                    ctx.textAlign = 'left';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(`${item.proteinActualPercentage}%`, startX + itemWidth / 2, barY + barHeight / 2);
+                    ctx.fillText(percentageText, barStartX + barMaxLength + (15 * scaleFactor), itemRowStartY + rowHeight / 2); // Increased spacing
 
-                    ctx.fillStyle = '#555555';
-                    ctx.font = '12px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'alphabetic';
-                    ctx.fillText(proteinInfo.label, startX + itemWidth/2, barY + barHeight + 15);
+                    currentY += rowHeight + paddingVertical;
                 }
 
                 comparisonCanvasContainer.innerHTML = '';
