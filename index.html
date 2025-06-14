@@ -438,7 +438,13 @@
          function renderHistory() {
              historyList.innerHTML = '';
             // At the beginning of renderHistory()
-            manageHistoryBtn.disabled = isComparisonMode || isDeletingHistoryMode || scanHistory.length === 0;
+            // Ensure text is correct before setting disabled state
+            manageHistoryBtn.textContent = isDeletingHistoryMode ? 'Done' : 'Manage History';
+
+            // Corrected disabled logic for manageHistoryBtn
+            manageHistoryBtn.disabled = isComparisonMode || (!isDeletingHistoryMode && scanHistory.length === 0);
+
+            clearAllBtn.classList.toggle('hidden', !(isDeletingHistoryMode && scanHistory.length > 0));
             compareModeBtn.disabled = isDeletingHistoryMode || scanHistory.length === 0;
 
              if (scanHistory.length === 0) {
@@ -935,24 +941,7 @@
         };
 
         // --- Comparison Image Generation ---
-        async function fetchMinimalProductDataForComparison(barcode) {
-            const apiUrl = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=image_small_url,image_thumb_url,product_name`;
-            try {
-                const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                if (data.status === 1 && data.product) {
-                    return {
-                        image_url: data.product.image_small_url || data.product.image_thumb_url || null,
-                        product_name: data.product.product_name // Fallback name if history item was minimal
-                    };
-                }
-                return null;
-            } catch (error) {
-                console.error(`Error fetching minimal data for ${barcode}:`, error);
-                return null; // Return null on error
-            }
-        }
+        // async function fetchMinimalProductDataForComparison(barcode) { /* ... */ } // REMOVED
 
         async function generateComparisonImage(itemsToCompare) {
             // Show modal and initial message immediately
@@ -965,13 +954,13 @@
                 const ctx = canvas.getContext('2d');
                 const numItems = itemsToCompare.length;
                 const itemWidth = 200;
-                const itemHeight = 300;
+                const itemHeight = 200; // Adjusted height after removing thumbnails
                 const padding = 20;
                 const barHeight = 20;
-                const thumbnailSize = 80;
+                // const thumbnailSize = 80; // REMOVED
 
                 canvas.width = numItems * itemWidth + (numItems + 1) * padding;
-                canvas.height = itemHeight + 2 * padding;
+                canvas.height = itemHeight + 2 * padding; // Adjusted canvas height based on new itemHeight
 
                 ctx.fillStyle = '#FFFFFF';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -982,23 +971,13 @@
                     const startX = padding + i * (itemWidth + padding);
                     const startY = padding;
 
-                    // Fetch image URL
-                    let imageUrl = item.imageUrl || null;
-                    if (!imageUrl && item.barcode && !item.isManual) {
-                        const fetchedData = await fetchMinimalProductDataForComparison(item.barcode);
-                        if (fetchedData) {
-                            imageUrl = fetchedData.image_url;
-                            if (!item.productName || item.productName === "N/A") {
-                                item.productName = fetchedData.product_name || item.productName;
-                            }
-                        }
-                    }
-
+                    // Item card background
                     ctx.fillStyle = '#f9f9f9';
-                    ctx.fillRect(startX, startY, itemWidth, itemHeight);
+                    ctx.fillRect(startX, startY, itemWidth, itemHeight); // Use new itemHeight
                     ctx.strokeStyle = '#e0e0e0';
                     ctx.strokeRect(startX, startY, itemWidth, itemHeight);
 
+                    // Product Name
                     ctx.fillStyle = '#333333';
                     ctx.font = 'bold 14px Arial';
                     ctx.textAlign = 'center';
@@ -1024,26 +1003,10 @@
                          textY += 16;
                     }
 
-                    const imageY = textY;
-                    if (imageUrl) {
-                        try {
-                            const img = await new Promise((resolve, reject) => {
-                                const image = new Image();
-                                image.crossOrigin = "anonymous";
-                                image.onload = () => resolve(image);
-                                image.onerror = () => reject(new Error('Image load error for: ' + imageUrl));
-                                image.src = imageUrl;
-                            });
-                            ctx.drawImage(img, startX + (itemWidth - thumbnailSize) / 2, imageY, thumbnailSize, thumbnailSize);
-                        } catch (err) {
-                            console.warn("Could not load image for item:", item.productName, err.message);
-                            drawPlaceholderImage(ctx, startX + (itemWidth - thumbnailSize) / 2, imageY, thumbnailSize);
-                        }
-                    } else {
-                        drawPlaceholderImage(ctx, startX + (itemWidth - thumbnailSize) / 2, imageY, thumbnailSize);
-                    }
+                    // REMOVED Thumbnail Image drawing block
 
-                    const barY = imageY + thumbnailSize + 15;
+                    // Protein Percentage Bar - New Y position
+                    const barY = textY + 15; // Position bar 15px below the product name.
                     const proteinInfo = getProteinInfo(parseFloat(item.proteinActualPercentage));
                     ctx.fillStyle = '#e0e0e0';
                     ctx.fillRect(startX + 10, barY, itemWidth - 20, barHeight);
@@ -1091,15 +1054,7 @@
             }
         }
 
-        function drawPlaceholderImage(ctx, x, y, size) {
-            ctx.fillStyle = '#cccccc';
-            ctx.fillRect(x, y, size, size);
-            ctx.fillStyle = '#888888';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('No Image', x + size / 2, y + size / 2);
-        }
+        // function drawPlaceholderImage(ctx, x, y, size) { /* ... */ } // REMOVED
 
         // --- Search Functionality ---
         async function fetchSearchResults(query) {
