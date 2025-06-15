@@ -1019,6 +1019,17 @@
                 const barHeight = baseBarHeight * scaleFactor;
                 const barMaxLength = baseBarMaxLength * scaleFactor;
 
+                const colorMap = {
+                    'bg-red-500': '#ef4444',
+                    'bg-yellow-500': '#eab308',
+                    'bg-blue-500': '#3b82f6',
+                    'bg-green-500': '#22c55e',
+                    'bg-purple-600': '#9333ea',
+                    'bg-gray-500': '#6b7280', // Used for "Zero"
+                    'bg-gray-700': '#374151', // Used for "Unreal"
+                    'bg-gray-400': '#9ca3af'  // Used as default by getProteinInfo for N/A or <0 percentage
+                };
+
                 let currentY = paddingVertical; // Start Y for the first item
 
                 for (let i = 0; i < numItems; i++) {
