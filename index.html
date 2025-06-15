@@ -113,6 +113,13 @@
         /* Hide barcode row specifically */
         #barcode-row.hidden { display: none; }
 
+        #comparison-canvas-container canvas {
+            max-width: 100%; /* Scale down to fit container width */
+            height: auto;    /* Maintain aspect ratio */
+            display: block;  /* For centering and proper layout */
+            margin-left: auto; /* Center horizontally */
+            margin-right: auto;/* Center horizontally */
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans flex flex-col items-center min-h-screen p-4">
@@ -229,14 +236,12 @@
             <div class="flex justify-between items-center mb-3">
                 <h2 class="text-xl font-semibold text-gray-700">Scan History</h2>
                 <div class="space-x-3">
-                    <button id="manage-history-btn" class="text-sm text-blue-500 hover:text-blue-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                        Manage History
-                    </button>
-                    <button id="clear-all-btn" class="text-sm text-red-500 hover:text-red-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed hidden">
-                        Clear All
-                    </button>
+                    <button id="compare-mode-btn" class="text-sm text-green-500 hover:text-green-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed" disabled>Compare</button>
+                    <button id="manage-history-btn" class="text-sm text-blue-500 hover:text-blue-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed" disabled>Manage History</button>
+                    <button id="clear-all-btn" class="text-sm text-red-500 hover:text-red-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed hidden">Clear All</button>
                 </div>
             </div>
+            <div id="comparison-actions" class="text-center mb-3 hidden"> <button id="generate-comparison-image-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md" disabled>Generate Comparison Image</button> </div>
             <div id="history-list" class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-white">
                 <p id="no-history-message" class="text-center text-gray-500 italic p-4">No history yet.</p>
             </div>
@@ -246,6 +251,19 @@
     <footer class="text-center text-gray-500 text-sm mt-8">
         Powered by <a href="https://openfoodfacts.org/" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline">Open Food Facts</a> and html5-qrcode.
     </footer>
+
+    <div id="comparison-modal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-3xl w-full">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Food Comparison</h2>
+            <div id="comparison-canvas-container" class="mb-4 border border-gray-300 rounded overflow-auto max-h-[60vh]">
+                canvas will go here
+            </div>
+            <div class="text-center">
+                <button id="download-comparison-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg mr-2">Download Image</button>
+                <button id="close-comparison-modal-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Close</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         // --- DOM Elements ---
@@ -279,6 +297,13 @@
         const clearAllBtn = document.getElementById('clear-all-btn');
         const manageHistoryBtn = document.getElementById('manage-history-btn');
         const noHistoryMessage = document.getElementById('no-history-message');
+        const compareModeBtn = document.getElementById('compare-mode-btn');
+        const comparisonActionsDiv = document.getElementById('comparison-actions');
+        const generateComparisonImageBtn = document.getElementById('generate-comparison-image-btn');
+        const comparisonModal = document.getElementById('comparison-modal');
+        const comparisonCanvasContainer = document.getElementById('comparison-canvas-container');
+        const downloadComparisonBtn = document.getElementById('download-comparison-btn');
+        const closeComparisonModalBtn = document.getElementById('close-comparison-modal-btn');
 
         // Search Mode Elements
         const searchFoodBtn = document.getElementById('search-food-btn');
@@ -300,6 +325,8 @@
         let lastScannedBarcode = null;
         let scanHistory = [];
         let isDeletingHistoryMode = false;
+        let isComparisonMode = false;
+        let selectedForComparison = [];
 
         // --- Local Storage Key ---
         const HISTORY_STORAGE_KEY = 'proteinMeterHistory';
@@ -337,10 +364,12 @@
             const storedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
             scanHistory = storedHistory ? JSON.parse(storedHistory) : [];
             renderHistory();
+            compareModeBtn.disabled = scanHistory.length === 0; // Added
          }
          function saveHistory() {
              localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(scanHistory));
              manageHistoryBtn.disabled = scanHistory.length === 0;
+             compareModeBtn.disabled = scanHistory.length === 0; // Added
              noHistoryMessage.style.display = scanHistory.length === 0 ? 'block' : 'none';
          }
 
@@ -365,18 +394,25 @@
 
          function deleteHistoryItem(itemTimestamp) {
             scanHistory = scanHistory.filter(item => item.timestamp !== itemTimestamp);
+            // After scanHistory = scanHistory.filter(...)
+            if (isComparisonMode) {
+                const oldSelectionLength = selectedForComparison.length;
+                selectedForComparison = selectedForComparison.filter(selItem => selItem.timestamp !== itemTimestamp);
+                if (selectedForComparison.length !== oldSelectionLength) { // If a selected item was deleted
+                     generateComparisonImageBtn.disabled = selectedForComparison.length < 2;
+                }
+            }
             saveHistory();
             renderHistory();
          }
 
          function toggleDeleteMode() {
-            isDeletingHistoryMode = !isDeletingHistoryMode;
-            manageHistoryBtn.textContent = isDeletingHistoryMode ? 'Done' : 'Manage History';
-            if (isDeletingHistoryMode && scanHistory.length > 0) {
-                clearAllBtn.classList.remove('hidden');
-            } else {
-                clearAllBtn.classList.add('hidden');
+            if (!isDeletingHistoryMode && isComparisonMode) { // True if trying to enter delete mode while comparison mode is active
+                isComparisonMode = false; // Just update the state variable
+                selectedForComparison = []; // Clear selections if comparison mode is being turned off
             }
+            isDeletingHistoryMode = !isDeletingHistoryMode; // Toggle the primary state
+
             renderHistory();
          }
 
@@ -384,32 +420,127 @@
          function clearAllHistory() {
              if (confirm("Are you sure you want to clear the entire history?")) {
                  scanHistory = [];
+                // After scanHistory = [];
+                if (isComparisonMode) {
+                    selectedForComparison = [];
+                    generateComparisonImageBtn.disabled = true;
+                }
                  saveHistory();
                  renderHistory();
              }
          }
          function renderHistory() {
              historyList.innerHTML = '';
-             if (scanHistory.length === 0) {
-                 historyList.appendChild(noHistoryMessage);
-                 noHistoryMessage.style.display = 'block';
-                 manageHistoryBtn.disabled = true;
-                 clearAllBtn.classList.add('hidden');
-                 if (isDeletingHistoryMode) {
-                    toggleDeleteMode();
-                 }
-                 return;
-             }
-             noHistoryMessage.style.display = 'none';
-             manageHistoryBtn.disabled = false;
-             if (isDeletingHistoryMode) {
-                 clearAllBtn.classList.remove('hidden');
-             } else {
-                 clearAllBtn.classList.add('hidden');
-             }
+            // At the beginning of renderHistory()
+            // Ensure text is correct before setting disabled state
+            manageHistoryBtn.textContent = isDeletingHistoryMode ? 'Done' : 'Manage History';
+
+            // Corrected disabled logic for manageHistoryBtn
+            // Manage History Button visibility and state
+            if (isComparisonMode) {
+                manageHistoryBtn.classList.add('hidden');
+            } else {
+                manageHistoryBtn.classList.remove('hidden');
+                manageHistoryBtn.textContent = isDeletingHistoryMode ? 'Done' : 'Manage History';
+                // Disabled if not in delete mode AND history is empty
+                manageHistoryBtn.disabled = (!isDeletingHistoryMode && scanHistory.length === 0);
+            }
+
+            // Compare Mode Button visibility and state
+            if (isDeletingHistoryMode) {
+                compareModeBtn.classList.add('hidden');
+            } else {
+                compareModeBtn.classList.remove('hidden');
+                // Set text and color based on whether we are in comparison mode or not
+                if (isComparisonMode) {
+                    compareModeBtn.textContent = 'Cancel'; // CHANGED
+                    compareModeBtn.classList.remove('text-green-500', 'hover:text-green-700');
+                    compareModeBtn.classList.add('text-red-500', 'hover:text-red-700');
+                } else {
+                    compareModeBtn.textContent = 'Compare'; // CHANGED
+                    compareModeBtn.classList.remove('text-red-500', 'hover:text-red-700');
+                    compareModeBtn.classList.add('text-green-500', 'hover:text-green-700');
+                }
+                // Disabled if not in comparison mode AND history is empty
+                compareModeBtn.disabled = (!isComparisonMode && scanHistory.length === 0);
+            }
+
+            // Clear All button visibility (this should remain as it was, shown only in delete mode with items)
+            clearAllBtn.classList.toggle('hidden', !(isDeletingHistoryMode && scanHistory.length > 0));
+
+            // Comparison actions div (generate button) visibility
+            comparisonActionsDiv.classList.toggle('hidden', !isComparisonMode);
+            if (isComparisonMode) { // If comparison mode is active, ensure generate button state is correct
+                 generateComparisonImageBtn.disabled = selectedForComparison.length < 2;
+            }
+
+
+            // Handling of scanHistory.length === 0 (should be at the end of button/UI updates for modes)
+            if (scanHistory.length === 0) {
+                noHistoryMessage.style.display = 'block';
+                historyList.innerHTML = ''; // Clear any cards
+                historyList.appendChild(noHistoryMessage);
+
+                // If history is empty, both modes should effectively be off.
+                // Ensure state variables are false if they somehow were true.
+                if (isComparisonMode) isComparisonMode = false;
+                if (isDeletingHistoryMode) isDeletingHistoryMode = false;
+
+                // Reset Manage History button
+                manageHistoryBtn.classList.remove('hidden');
+                manageHistoryBtn.textContent = 'Manage History';
+                manageHistoryBtn.disabled = true;
+
+                // Reset Compare Mode button
+                compareModeBtn.classList.remove('hidden');
+                compareModeBtn.textContent = 'Compare'; // CHANGED
+                compareModeBtn.classList.remove('text-red-500', 'hover:text-red-700');
+                compareModeBtn.classList.add('text-green-500', 'hover:text-green-700');
+                compareModeBtn.disabled = true;
+
+                clearAllBtn.classList.add('hidden');
+                comparisonActionsDiv.classList.add('hidden');
+
+                // No cards to render, so return
+                return;
+            } else {
+                noHistoryMessage.style.display = 'none';
+            }
+
+            // Filter selectedForComparison to remove any items no longer in scanHistory (if comparison mode is active)
+            // This was previously at the end, but should be done before rendering cards if it affects checkbox states.
+            // However, createHistoryCard itself checks against selectedForComparison, so filtering here is mainly for generateBtn state.
+            // Let's keep it after card rendering, just before returning if not empty, or if it's tied to generateBtn state.
+            // The current placement (after card rendering, as per previous version) is fine for generateBtn state.
+            // The subtask description for renderHistory didn't specify moving this filter, so we'll assume it's fine.
 
              scanHistory.forEach(item => historyList.appendChild(createHistoryCard(item)));
+
+            // This was the previous location for this block. It's fine here.
+            if (isComparisonMode) {
+                const currentHistoryTimestamps = new Set(scanHistory.map(hItem => hItem.timestamp));
+                selectedForComparison = selectedForComparison.filter(selItem => currentHistoryTimestamps.has(selItem.timestamp));
+                generateComparisonImageBtn.disabled = selectedForComparison.length < 2;
+            }
          }
+
+        function toggleComparisonMode() {
+            if (!isComparisonMode && isDeletingHistoryMode) { // True if trying to enter comparison mode while delete mode is active
+                isDeletingHistoryMode = false; // Just update the state variable; renderHistory will handle UI
+            }
+            isComparisonMode = !isComparisonMode; // Toggle the primary state
+
+            if (isComparisonMode) {
+                selectedForComparison = []; // Clear selections when entering mode
+                // Update button text/color immediately for better responsiveness, renderHistory will also affirm this
+                compareModeBtn.textContent = 'Cancel'; // CHANGED
+                compareModeBtn.classList.remove('text-green-500', 'hover:text-green-700');
+                compareModeBtn.classList.add('text-red-500', 'hover:text-red-700');
+            }
+            // On exiting, renderHistory will set the correct text/color for compareModeBtn
+            renderHistory();
+        }
+
          function createHistoryCard(item) {
              const card = document.createElement('div');
              card.className = `history-card ${item.fadedColorClass || 'bg-fade-gray-400'}`;
@@ -417,7 +548,34 @@
                 card.classList.add('deleting-mode');
              }
 
-             const summaryWrapper = document.createElement('div');
+            const summaryWrapper = document.createElement('div'); // Keep this line
+            summaryWrapper.className = 'history-summary-wrapper'; // Keep this line
+
+            if (isComparisonMode) {
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.classList.add('comparison-checkbox', 'form-checkbox', 'h-5', 'w-5', 'text-indigo-600', 'transition', 'duration-150', 'ease-in-out', 'mr-3', 'ml-2', 'flex-shrink-0');
+                checkbox.setAttribute('data-timestamp', item.timestamp); // Use timestamp as a unique ID
+
+                // Check if this item is already selected
+                checkbox.checked = selectedForComparison.some(selectedItem => selectedItem.timestamp === item.timestamp);
+
+                checkbox.addEventListener('change', () => {
+                    if (checkbox.checked) {
+                        // Add the full item to selectedForComparison if not already present
+                        if (!selectedForComparison.some(selectedItem => selectedItem.timestamp === item.timestamp)) {
+                            selectedForComparison.push(item);
+                        }
+                    } else {
+                        // Remove item from selectedForComparison
+                        selectedForComparison = selectedForComparison.filter(selectedItem => selectedItem.timestamp !== item.timestamp);
+                    }
+                    // Update "Generate Comparison Image" button state
+                    generateComparisonImageBtn.disabled = selectedForComparison.length < 2;
+                });
+                card.appendChild(checkbox); // Prepend checkbox to the card.
+            }
+            // const summaryWrapper = document.createElement('div'); // MOVED UP
              summaryWrapper.className = 'history-summary-wrapper';
 
              const summary = document.createElement('div');
@@ -426,8 +584,16 @@
                  <span class="font-medium text-sm truncate product-name-summary pr-2">${item.productName || (item.isManual ? 'Manual Entry' : 'N/A')}</span>
                  <span class="text-xs font-semibold whitespace-nowrap">${item.proteinActualPercentage}% ${item.proteinLabel || ''}</span>`;
              summary.onclick = () => {
-                if (!isDeletingHistoryMode) {
+                if (!isComparisonMode && !isDeletingHistoryMode) { // Only allow expansion if not in comparison or deleting mode
                     card.classList.toggle('expanded');
+                } else if (isComparisonMode) {
+                    // If in comparison mode, clicking the summary should toggle the checkbox
+                    const checkbox = card.querySelector('.comparison-checkbox');
+                    if (checkbox) {
+                        checkbox.checked = !checkbox.checked;
+                        // Manually trigger change event to update selection array and button state
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
                 }
              };
              summaryWrapper.appendChild(summary);
@@ -790,6 +956,182 @@
         // searchForm.addEventListener('submit', handleSearchSubmit); // Placeholder for search submission
         clearAllBtn.addEventListener('click', clearAllHistory);
         manageHistoryBtn.addEventListener('click', toggleDeleteMode);
+        compareModeBtn.addEventListener('click', toggleComparisonMode); // Added event listener
+        closeComparisonModalBtn.addEventListener('click', () => comparisonModal.classList.add('hidden'));
+
+        generateComparisonImageBtn.onclick = () => {
+            if (selectedForComparison.length >= 2) {
+                generateComparisonImage(selectedForComparison);
+            } else {
+                alert("Please select at least two items to compare.");
+            }
+        };
+
+        // --- Comparison Image Generation ---
+        // async function fetchMinimalProductDataForComparison(barcode) { /* ... */ } // REMOVED
+
+        async function generateComparisonImage(itemsToCompare) {
+            // Show modal and initial message immediately
+            comparisonCanvasContainer.innerHTML = '<p class="text-center p-4">Generating image, please wait...</p>';
+            comparisonModal.classList.remove('hidden');
+            downloadComparisonBtn.disabled = true; // Disable download button until canvas is ready
+
+            try {
+                const scaleFactor = 2; // For 2x resolution
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const numItems = itemsToCompare.length;
+
+                // New base dimensions for vertical layout
+                const baseRowHeight = 60;         // Height for each item's row
+                const basePaddingVertical = 15;   // Vertical padding between rows and at top/bottom
+                const basePaddingHorizontal = 20; // Horizontal padding at left/right of canvas
+                const baseProductNameLeftMargin = 10; // Margin for product name from the left edge of its "column"
+                const baseProductNameMaxWidth = 250;  // Max width for product name text before wrapping/truncating
+                const baseBarStartX = baseProductNameLeftMargin + baseProductNameMaxWidth + 30; // X-pos where protein bars start
+                const baseBarHeight = 25;          // Height of the protein bar itself
+                const baseBarMaxLength = 300;     // Max length of a 100% protein bar
+                const basePercentageTextWidth = 100; // Estimated width needed for "XX.X% Label" text next to bar
+
+                // Calculate required canvas width based on new layout
+                const baseCanvasWidth = baseBarStartX + baseBarMaxLength + basePercentageTextWidth + basePaddingHorizontal + baseProductNameLeftMargin; // Added baseProductNameLeftMargin for overall width calculation
+
+                // Scaled dimensions for canvas
+                canvas.width = baseCanvasWidth * scaleFactor;
+                canvas.height = (numItems * baseRowHeight + (numItems + 1) * basePaddingVertical) * scaleFactor;
+
+                ctx.fillStyle = '#f7f7f7'; // Softer off-white background
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Apply scaleFactor to all base dimensions for drawing
+                const rowHeight = baseRowHeight * scaleFactor;
+                const paddingVertical = basePaddingVertical * scaleFactor;
+                const paddingHorizontal = basePaddingHorizontal * scaleFactor;
+                const productNameLeftMargin = baseProductNameLeftMargin * scaleFactor;
+                const productNameMaxWidth = baseProductNameMaxWidth * scaleFactor;
+                const barStartX = baseBarStartX * scaleFactor;
+                const barHeight = baseBarHeight * scaleFactor;
+                const barMaxLength = baseBarMaxLength * scaleFactor;
+
+                const colorMap = {
+                    'bg-red-500': '#ef4444',
+                    'bg-yellow-500': '#eab308',
+                    'bg-blue-500': '#3b82f6',
+                    'bg-green-500': '#22c55e',
+                    'bg-purple-600': '#9333ea',
+                    'bg-gray-500': '#6b7280', // Used for "Zero"
+                    'bg-gray-700': '#374151', // Used for "Unreal"
+                    'bg-gray-400': '#9ca3af'  // Used as default by getProteinInfo for N/A or <0 percentage
+                };
+
+                let currentY = paddingVertical; // Start Y for the first item
+
+                for (let i = 0; i < numItems; i++) {
+                    const item = itemsToCompare[i];
+                    const itemRowStartY = currentY;
+
+                    // Product Name
+                    ctx.fillStyle = '#333333';
+                    ctx.font = `bold ${15 * scaleFactor}px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif`;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+
+                    const productName = item.productName || (item.isManual ? 'Manual Entry' : 'N/A');
+                    let displayName = productName;
+                    let nameMetrics = ctx.measureText(displayName);
+                    while (nameMetrics.width > productNameMaxWidth && displayName.length > 10) {
+                        displayName = displayName.substring(0, displayName.length - 4) + "...";
+                        nameMetrics = ctx.measureText(displayName);
+                    }
+                    const productNameY = itemRowStartY + (5 * scaleFactor); // Position text 5px (base) from top of row area
+                    ctx.fillText(displayName, paddingHorizontal + productNameLeftMargin, productNameY);
+
+                    // Protein Percentage Bar
+                    const proteinInfo = getProteinInfo(parseFloat(item.proteinActualPercentage));
+
+                    // Commented out bar background track for a cleaner look
+                    // ctx.fillStyle = '#e0e0e0';
+                    // ctx.fillRect(barStartX, itemRowStartY + (rowHeight - barHeight) / 2, barMaxLength, barHeight);
+
+                    const barFillWidth = ((parseFloat(item.proteinDisplayPercentage) || 0) / 100) * barMaxLength;
+                    const barActualY = itemRowStartY + (rowHeight - barHeight) / 2;
+                    const barFillColor = colorMap[proteinInfo.colorClass] || '#6b7280';
+                    const barCornerRadius = Math.min(5 * scaleFactor, barHeight / 2);
+
+                    const effectiveBarFillWidth = Math.max(0, barFillWidth);
+                    const effectiveBarHeight = Math.max(0, barHeight);
+
+                    if (effectiveBarFillWidth > 0 && effectiveBarHeight > 0) {
+                        drawRoundedRect(ctx, barStartX, barActualY, effectiveBarFillWidth, effectiveBarHeight, barCornerRadius, barFillColor);
+                    }
+
+                    // Percentage Text (next to bar)
+                    const percentageText = `${item.proteinActualPercentage}% ${proteinInfo.label}`;
+                    ctx.fillStyle = '#333333';
+                    ctx.font = `normal ${12 * scaleFactor}px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif`;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(percentageText, barStartX + barMaxLength + (15 * scaleFactor), itemRowStartY + rowHeight / 2);
+
+                    // Row Separator
+                    if (i < numItems - 1) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = '#dddddd';
+                        ctx.lineWidth = (1 * scaleFactor);
+                        const lineY = itemRowStartY + rowHeight + (paddingVertical / 2);
+                        ctx.moveTo(paddingHorizontal, lineY);
+                        ctx.lineTo(canvas.width - paddingHorizontal, lineY);
+                        ctx.stroke();
+                    }
+
+                    currentY += rowHeight + paddingVertical;
+                }
+
+                comparisonCanvasContainer.innerHTML = '';
+                comparisonCanvasContainer.appendChild(canvas);
+                downloadComparisonBtn.disabled = false;
+
+                downloadComparisonBtn.onclick = () => {
+                    if (canvas) {
+                        const dataURL = canvas.toDataURL('image/png');
+                        const link = document.createElement('a');
+                        link.href = dataURL;
+                        link.download = 'food_comparison.png';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    } else {
+                        console.error("Canvas element not found for download.");
+                        alert("Error: Could not find the image to download.");
+                    }
+                };
+
+            } catch (error) {
+                console.error("Error generating comparison image:", error);
+                comparisonCanvasContainer.innerHTML = `<p class="text-center text-red-500 p-4">Error generating image: ${error.message}. Please try again.</p>`;
+                downloadComparisonBtn.disabled = true;
+            }
+        }
+
+        // function drawPlaceholderImage(ctx, x, y, size) { /* ... */ } // REMOVED
+
+        function drawRoundedRect(ctx, x, y, width, height, radius, color) {
+            if (width < 2 * radius) radius = width / 2;
+            if (height < 2 * radius) radius = height / 2;
+            if (radius < 0) radius = 0;
+            if (width <= 0 || height <= 0) return;
+
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.arcTo(x + width, y, x + width, y + height, radius);
+            ctx.arcTo(x + width, y + height, x, y + height, radius);
+            ctx.arcTo(x, y + height, x, y, radius);
+            ctx.arcTo(x, y, x + width, y, radius);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
 
         // --- Search Functionality ---
         async function fetchSearchResults(query) {
