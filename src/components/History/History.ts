@@ -144,26 +144,26 @@ export class History {
     if (this.currentMode === 'comparison') {
       this.compareModeBtn.textContent = 'Cancel'
       this.compareModeBtn.className = 'text-sm text-red-500 hover:text-red-700 hover:underline'
-      this.manageHistoryBtn.textContent = 'Manage History'
-      this.manageHistoryBtn.className =
-        'text-sm text-blue-500 hover:text-blue-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed'
+      this.compareModeBtn.classList.remove('hidden')
+      this.manageHistoryBtn.classList.add('hidden') // Hide Manage History button in compare mode
       this.clearAllBtn.classList.add('hidden')
       this.comparisonActionsDiv.classList.remove('hidden')
     } else if (this.currentMode === 'deleting') {
-      this.compareModeBtn.textContent = 'Compare'
-      this.compareModeBtn.className =
-        'text-sm text-green-500 hover:text-green-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed'
-      this.manageHistoryBtn.textContent = 'Cancel'
-      this.manageHistoryBtn.className = 'text-sm text-red-500 hover:text-red-700 hover:underline'
+      this.compareModeBtn.classList.add('hidden') // Hide Compare button in delete mode
+      this.manageHistoryBtn.textContent = 'Done'
+      this.manageHistoryBtn.className = 'text-sm text-blue-500 hover:text-blue-700 hover:underline'
+      this.manageHistoryBtn.classList.remove('hidden')
       this.clearAllBtn.classList.remove('hidden')
       this.comparisonActionsDiv.classList.add('hidden')
     } else {
       this.compareModeBtn.textContent = 'Compare'
       this.compareModeBtn.className =
         'text-sm text-green-500 hover:text-green-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed'
+      this.compareModeBtn.classList.remove('hidden')
       this.manageHistoryBtn.textContent = 'Manage History'
       this.manageHistoryBtn.className =
         'text-sm text-blue-500 hover:text-blue-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed'
+      this.manageHistoryBtn.classList.remove('hidden')
       this.clearAllBtn.classList.add('hidden')
       this.comparisonActionsDiv.classList.add('hidden')
     }
@@ -213,13 +213,15 @@ export class History {
     const card = document.createElement('div')
     card.className = `history-card ${item.fadedColorClass || 'bg-fade-gray-400'}`
 
-    // Add mode-specific elements
+    // Add mode-specific classes and elements
+    if (this.currentMode === 'deleting') {
+      card.classList.add('deleting-mode')
+    }
+
+    // Add mode-specific elements on the left
     if (this.currentMode === 'comparison') {
       const checkbox = this.createComparisonCheckbox(item)
       card.appendChild(checkbox)
-    } else if (this.currentMode === 'deleting') {
-      const deleteBtn = this.createDeleteButton(item)
-      card.appendChild(deleteBtn)
     }
 
     const summaryWrapper = document.createElement('div')
@@ -269,6 +271,12 @@ export class History {
 
     summaryWrapper.appendChild(details)
     card.appendChild(summaryWrapper)
+
+    // Add delete button on the right side
+    if (this.currentMode === 'deleting') {
+      const deleteBtn = this.createDeleteButton(item)
+      card.appendChild(deleteBtn)
+    }
 
     return card
   }
@@ -321,9 +329,15 @@ export class History {
 
   private createDeleteButton(item: HistoryItem): HTMLButtonElement {
     const deleteBtn = document.createElement('button')
-    deleteBtn.className = 'text-red-500 hover:text-red-700 mr-2 p-1'
-    deleteBtn.innerHTML = '🗑️'
-    deleteBtn.title = 'Delete this item'
+    deleteBtn.className = 'delete-history-item-btn'
+    deleteBtn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="15" y1="9" x2="9" y2="15"></line>
+        <line x1="9" y1="9" x2="15" y2="15"></line>
+      </svg>
+    `
+    deleteBtn.setAttribute('aria-label', 'Delete item')
     deleteBtn.onclick = (e) => {
       e.stopPropagation()
       this.deleteHistoryItem(item.timestamp)
@@ -332,17 +346,15 @@ export class History {
   }
 
   private deleteHistoryItem(timestamp: string): void {
-    if (confirm('Are you sure you want to delete this item?')) {
-      HistoryStorage.remove(timestamp)
+    HistoryStorage.remove(timestamp)
 
-      // Remove from selected items if it was selected
-      this.selectedForComparison = this.selectedForComparison.filter(
-        (item) => item.timestamp !== timestamp
-      )
+    // Remove from selected items if it was selected
+    this.selectedForComparison = this.selectedForComparison.filter(
+      (item) => item.timestamp !== timestamp
+    )
 
-      this.loadAndRender()
-      this.eventBus.emit(EVENTS.HISTORY_UPDATED, {})
-    }
+    this.loadAndRender()
+    this.eventBus.emit(EVENTS.HISTORY_UPDATED, {})
   }
 
   private clearAllHistory(): void {

@@ -84,7 +84,7 @@ describe('HistoryStorage', () => {
 
     it('handles save errors gracefully', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-      
+
       // Temporarily override setItem to throw error
       localStorageMock.setItem.mockImplementation(() => {
         throw new Error('Storage quota exceeded')

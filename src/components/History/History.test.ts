@@ -212,7 +212,7 @@ describe('History', () => {
       manageHistoryBtn.dispatchEvent(clickEvent)
 
       expect(history.getCurrentMode()).toBe('deleting')
-      expect(manageHistoryBtn.textContent).toBe('Cancel')
+      expect(manageHistoryBtn.textContent).toBe('Done')
     })
 
     it('exits comparison mode when compare button is clicked again', () => {
@@ -336,14 +336,6 @@ describe('History', () => {
       expect(history.getCurrentMode()).toBe('normal')
     })
 
-    it('does not delete if user cancels confirmation', () => {
-      vi.spyOn(window, 'confirm').mockReturnValue(false)
-
-      const timestamp = '2023-01-01T12:00:00Z'
-      eventBus.emit(EVENTS.HISTORY_DELETE, { timestamp })
-
-      expect(HistoryStorage.remove).not.toHaveBeenCalled()
-    })
 
     it('emits history updated event after deletion', () => {
       const eventSpy = vi.fn()
