@@ -30,6 +30,8 @@ const createMockHistoryItem = (overrides: Partial<HistoryItem> = {}): HistoryIte
 describe('HistoryStorage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Reset setItem to default mock behavior
+    localStorageMock.setItem.mockImplementation(() => {})
   })
 
   describe('load', () => {
@@ -82,6 +84,8 @@ describe('HistoryStorage', () => {
 
     it('handles save errors gracefully', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      
+      // Temporarily override setItem to throw error
       localStorageMock.setItem.mockImplementation(() => {
         throw new Error('Storage quota exceeded')
       })
@@ -93,6 +97,7 @@ describe('HistoryStorage', () => {
       )
 
       consoleSpy.mockRestore()
+      // Reset back to normal behavior (will be done by beforeEach for next test)
     })
   })
 
