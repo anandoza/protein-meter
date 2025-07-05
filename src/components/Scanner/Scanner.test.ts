@@ -193,9 +193,9 @@ describe('Scanner', () => {
 
   describe('barcode detection', () => {
     it('emits barcode scanned event for new barcode', async () => {
-      let capturedCallback: ((barcode: string) => void) | null = null
+      let capturedCallback: ((barcode: string) => void) | undefined
 
-      mockHtml5Qrcode.start.mockImplementation((device, config, successCallback) => {
+      mockHtml5Qrcode.start.mockImplementation((_device, _config, successCallback) => {
         capturedCallback = successCallback
         return Promise.resolve()
       })
@@ -207,9 +207,7 @@ describe('Scanner', () => {
       await scanner.startScanning()
 
       // Now trigger the callback after scanning has started
-      if (capturedCallback) {
-        capturedCallback('1234567890')
-      }
+      capturedCallback?.('1234567890')
 
       expect(eventSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -220,9 +218,9 @@ describe('Scanner', () => {
     })
 
     it('ignores duplicate consecutive barcodes', async () => {
-      let capturedCallback: ((barcode: string) => void) | null = null
+      let capturedCallback: ((barcode: string) => void) | undefined
 
-      mockHtml5Qrcode.start.mockImplementation((device, config, successCallback) => {
+      mockHtml5Qrcode.start.mockImplementation((_device, _config, successCallback) => {
         capturedCallback = successCallback
         return Promise.resolve()
       })
@@ -233,18 +231,16 @@ describe('Scanner', () => {
 
       await scanner.startScanning()
 
-      if (capturedCallback) {
-        capturedCallback('1234567890')
-        capturedCallback('1234567890') // Same barcode
-      }
+      capturedCallback?.('1234567890')
+      capturedCallback?.('1234567890') // Same barcode
 
       expect(eventSpy).toHaveBeenCalledTimes(1)
     })
 
     it('allows different barcodes', async () => {
-      let capturedCallback: ((barcode: string) => void) | null = null
+      let capturedCallback: ((barcode: string) => void) | undefined
 
-      mockHtml5Qrcode.start.mockImplementation((device, config, successCallback) => {
+      mockHtml5Qrcode.start.mockImplementation((_device, _config, successCallback) => {
         capturedCallback = successCallback
         return Promise.resolve()
       })
@@ -255,10 +251,8 @@ describe('Scanner', () => {
 
       await scanner.startScanning()
 
-      if (capturedCallback) {
-        capturedCallback('1234567890')
-        capturedCallback('0987654321') // Different barcode
-      }
+      capturedCallback?.('1234567890')
+      capturedCallback?.('0987654321') // Different barcode
 
       expect(eventSpy).toHaveBeenCalledTimes(2)
       expect(eventSpy).toHaveBeenNthCalledWith(

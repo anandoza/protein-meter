@@ -11,23 +11,26 @@ export const EVENTS = {
   PRODUCT_RESULT: 'product-result',
   UI_MODE_CHANGE: 'ui-mode-change',
   HISTORY_UPDATED: 'history-updated',
+  HISTORY_MODE_CHANGE: 'history-mode-change',
+  HISTORY_DELETE: 'history-delete',
+  HISTORY_CLEAR_ALL: 'history-clear-all',
   COMPARISON_SELECTION_CHANGE: 'comparison-selection-change',
 } as const
 
-// Event data interfaces
-export interface BarcodeScannedEvent {
-  barcode: string
-}
+// Re-export event interfaces from types
+export type {
+  BarcodeScannedEvent,
+  ManualEntrySubmitEvent,
+  UIModeChangeEvent,
+  HistoryModeChangeEvent,
+  HistoryDeleteEvent,
+  ComparisonSelectionChangeEvent,
+} from '@/types'
 
+// Event data interfaces
 export interface ScanErrorEvent {
   error: string
   barcode?: string
-}
-
-export interface ManualEntrySubmitEvent {
-  name: string
-  calories: number
-  protein: number
 }
 
 export interface SearchSubmitEvent {
@@ -37,11 +40,6 @@ export interface SearchSubmitEvent {
 export interface ProductResultEvent {
   data: any // ProductDisplayData
   sourceOperation: string
-}
-
-export interface UIModeChangeEvent {
-  mode: string
-  previousMode?: string
 }
 
 /**

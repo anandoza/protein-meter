@@ -25,3 +25,32 @@ export interface ManualEntryFormData {
 export interface SearchFormData {
   query: string
 }
+
+// Event interfaces
+export interface BarcodeScannedEvent {
+  barcode: string
+}
+
+export interface ManualEntrySubmitEvent {
+  name: string
+  calories: number
+  protein: number
+}
+
+export interface UIModeChangeEvent {
+  mode: string
+  previousMode?: string
+}
+
+export interface HistoryModeChangeEvent {
+  mode: HistoryMode
+  previousMode?: HistoryMode
+}
+
+export interface HistoryDeleteEvent {
+  timestamp: string
+}
+
+export interface ComparisonSelectionChangeEvent {
+  selectedItems: any[] // Will be HistoryItem[] but avoiding circular imports
+}

@@ -1,5 +1,4 @@
 import { Html5Qrcode } from 'html5-qrcode'
-import type { ScannerConfig } from '@/types'
 import { SCANNER_CONFIG, CSS_CLASSES, UI_MESSAGES } from '@/utils/constants'
 import { EventBus, EVENTS, type BarcodeScannedEvent, type ScanErrorEvent } from '@/utils/events'
 
@@ -65,7 +64,7 @@ export class Scanner {
     }
   }
 
-  private qrCodeErrorCallback = (errorMessage: string): void => {
+  private qrCodeErrorCallback = (_errorMessage: string): void => {
     // Suppress frequent error messages - they're mostly informational
     // console.warn(`Code scan error = ${errorMessage}`)
   }

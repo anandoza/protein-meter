@@ -15,7 +15,7 @@ vi.stubGlobal('clearTimeout', mockClearTimeout)
 describe('OpenFoodFactsAPI', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSetTimeout.mockImplementation((fn) => {
+    mockSetTimeout.mockImplementation((_fn) => {
       // Return a mock timer ID
       return 123
     })
@@ -245,7 +245,7 @@ describe('OpenFoodFactsAPI', () => {
       const product = {
         code: '1234567890',
         nutriments: {
-          proteins_100g: 'invalid',
+          proteins_100g: NaN,
           'energy-kcal_100g': -100,
         },
       }
