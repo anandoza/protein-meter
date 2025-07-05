@@ -1,608 +1,921 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#4f46e5">
-    <meta name="description" content="Scan barcodes or enter manually to calculate protein calorie percentage.">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png">
-    <link rel="icon" href="app-icon.svg" type="image/svg+xml">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta
+      name="description"
+      content="Scan barcodes or enter manually to calculate protein calorie percentage."
+    />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="icon" href="app-icon.svg" type="image/svg+xml" />
     <title>Protein Meter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
-        /* Scanner Area Styles */
-        #reader {
-            width: 100%; max-width: 500px; border: 2px dashed #cbd5e1;
-            border-radius: 0.5rem; overflow: hidden; position: relative;
-            min-height: 200px; background-color: #e5e7eb;
-            transition: min-height 0.3s ease-in-out, border 0.3s ease-in-out, background-color 0.3s ease-in-out, opacity 0.3s ease-in-out;
-        }
-        #reader.inactive {
-            min-height: 0px !important; border-width: 0px !important;
-            background-color: transparent !important; opacity: 0; /* Fade out */
-            pointer-events: none; /* Prevent interaction when hidden */
-        }
-        #reader video { width: 100%; height: auto; display: block; }
-        #reader div[style*="box-shadow"] { border-radius: 0.5rem !important; }
+      /* Scanner Area Styles */
+      #reader {
+        width: 100%;
+        max-width: 500px;
+        border: 2px dashed #cbd5e1;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        position: relative;
+        min-height: 200px;
+        background-color: #e5e7eb;
+        transition:
+          min-height 0.3s ease-in-out,
+          border 0.3s ease-in-out,
+          background-color 0.3s ease-in-out,
+          opacity 0.3s ease-in-out;
+      }
+      #reader.inactive {
+        min-height: 0px !important;
+        border-width: 0px !important;
+        background-color: transparent !important;
+        opacity: 0; /* Fade out */
+        pointer-events: none; /* Prevent interaction when hidden */
+      }
+      #reader video {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      #reader div[style*='box-shadow'] {
+        border-radius: 0.5rem !important;
+      }
 
-        /* Percentage Bar Styles */
-        .percentage-bar-container {
-            background-color: #e5e7eb; border-radius: 0.375rem;
-            overflow: hidden; height: 20px; width: 100%;
-        }
-        .percentage-bar-fill {
-            height: 100%; border-radius: 0.375rem;
-            transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out;
-            text-align: center; color: white; font-size: 0.75rem;
-            line-height: 20px; font-weight: 600;
-            text-shadow: 1px 1px 1px rgba(0,0,0,0.2);
-            max-width: 100%;
-        }
+      /* Percentage Bar Styles */
+      .percentage-bar-container {
+        background-color: #e5e7eb;
+        border-radius: 0.375rem;
+        overflow: hidden;
+        height: 20px;
+        width: 100%;
+      }
+      .percentage-bar-fill {
+        height: 100%;
+        border-radius: 0.375rem;
+        transition:
+          width 0.5s ease-in-out,
+          background-color 0.5s ease-in-out;
+        text-align: center;
+        color: white;
+        font-size: 0.75rem;
+        line-height: 20px;
+        font-weight: 600;
+        text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.2);
+        max-width: 100%;
+      }
 
-        /* History Card Styles */
-        .history-card {
-            border: 1px solid #e5e7eb; border-radius: 0.375rem;
-            margin-bottom: 0.5rem; overflow: hidden;
-            transition: background-color 0.3s ease;
-            display: flex; /* For aligning delete button */
-            align-items: center; /* For aligning delete button */
-        }
-        .history-summary-wrapper { /* New wrapper for summary content */
-            flex-grow: 1; /* Allow summary to take available space */
-            min-width: 0; /* Important for flex children to allow truncation */
-        }
-        .history-summary {
-            padding: 0.5rem 0.75rem; cursor: pointer; display: flex;
-            justify-content: space-between; align-items: center;
-            transition: background-color 0.3s ease;
-        }
-        .history-summary .product-name-summary { /* Class for summary product name */
-            /* Tailwind 'truncate' applies: overflow: hidden; text-overflow: ellipsis; white-space: nowrap; */
-            /* Ensure it doesn't grow indefinitely, allowing truncation */
-            min-width: 0; /* Helps flex items truncate */
-        }
-        .history-summary:hover { filter: brightness(95%); }
-        .history-details {
-            max-height: 0; overflow: hidden;
-            transition: max-height 0.4s ease-out, padding 0.4s ease-out;
-            padding: 0 0.75rem; border-top: 1px solid transparent;
-        }
-        .history-card.expanded .history-details {
-            max-height: 300px; padding: 0.75rem; border-top-color: #e5e7eb;
-        }
-        .delete-history-item-btn {
-            padding: 0.5rem;
-            margin-left: 0.5rem;
-            margin-right: 0.5rem;
-            cursor: pointer;
-            color: #ef4444; /* red-500 */
-            background-color: transparent;
-            border: none;
-            display: none; /* Hidden by default */
-            flex-shrink: 0; /* Prevent delete button from shrinking */
-        }
-        .history-card.deleting-mode .delete-history-item-btn {
-            display: inline-block;
-        }
-        .delete-history-item-btn:hover {
-            color: #dc2626; /* red-600 */
-        }
-        /* For the expanded details view product name */
-        .history-item-name-details {
-            white-space: normal; /* Allows text to wrap to the next line */
-            word-break: break-word; /* Breaks long words if they would overflow */
-            font-weight: 600; /* semibold */
-            margin-bottom: 0.25rem; /* mb-1 */
-            color: #374151; /* gray-700 */
-        }
+      /* History Card Styles */
+      .history-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.375rem;
+        margin-bottom: 0.5rem;
+        overflow: hidden;
+        transition: background-color 0.3s ease;
+        display: flex; /* For aligning delete button */
+        align-items: center; /* For aligning delete button */
+      }
+      .history-summary-wrapper {
+        /* New wrapper for summary content */
+        flex-grow: 1; /* Allow summary to take available space */
+        min-width: 0; /* Important for flex children to allow truncation */
+      }
+      .history-summary {
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background-color 0.3s ease;
+      }
+      .history-summary .product-name-summary {
+        /* Class for summary product name */
+        /* Tailwind 'truncate' applies: overflow: hidden; text-overflow: ellipsis; white-space: nowrap; */
+        /* Ensure it doesn't grow indefinitely, allowing truncation */
+        min-width: 0; /* Helps flex items truncate */
+      }
+      .history-summary:hover {
+        filter: brightness(95%);
+      }
+      .history-details {
+        max-height: 0;
+        overflow: hidden;
+        transition:
+          max-height 0.4s ease-out,
+          padding 0.4s ease-out;
+        padding: 0 0.75rem;
+        border-top: 1px solid transparent;
+      }
+      .history-card.expanded .history-details {
+        max-height: 300px;
+        padding: 0.75rem;
+        border-top-color: #e5e7eb;
+      }
+      .delete-history-item-btn {
+        padding: 0.5rem;
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+        cursor: pointer;
+        color: #ef4444; /* red-500 */
+        background-color: transparent;
+        border: none;
+        display: none; /* Hidden by default */
+        flex-shrink: 0; /* Prevent delete button from shrinking */
+      }
+      .history-card.deleting-mode .delete-history-item-btn {
+        display: inline-block;
+      }
+      .delete-history-item-btn:hover {
+        color: #dc2626; /* red-600 */
+      }
+      /* For the expanded details view product name */
+      .history-item-name-details {
+        white-space: normal; /* Allows text to wrap to the next line */
+        word-break: break-word; /* Breaks long words if they would overflow */
+        font-weight: 600; /* semibold */
+        margin-bottom: 0.25rem; /* mb-1 */
+        color: #374151; /* gray-700 */
+      }
 
+      /* Faded Background Classes */
+      .bg-fade-gray-500 {
+        background-color: #f3f4f6;
+      }
+      .bg-fade-red-500 {
+        background-color: #fee2e2;
+      }
+      .bg-fade-yellow-500 {
+        background-color: #fef9c3;
+      }
+      .bg-fade-blue-500 {
+        background-color: #dbeafe;
+      }
+      .bg-fade-green-500 {
+        background-color: #d1fae5;
+      }
+      .bg-fade-purple-600 {
+        background-color: #f3e8ff;
+      }
+      .bg-fade-gray-400 {
+        background-color: #f9fafb;
+      }
+      .bg-fade-red-600 {
+        background-color: #fee2e2;
+      }
+      .bg-fade-gray-700 {
+        background-color: #e5e7eb;
+      } /* For Unreal */
 
-        /* Faded Background Classes */
-        .bg-fade-gray-500 { background-color: #f3f4f6; } .bg-fade-red-500 { background-color: #fee2e2; }
-        .bg-fade-yellow-500 { background-color: #fef9c3; } .bg-fade-blue-500 { background-color: #dbeafe; }
-        .bg-fade-green-500 { background-color: #d1fae5; } .bg-fade-purple-600 { background-color: #f3e8ff; }
-        .bg-fade-gray-400 { background-color: #f9fafb; } .bg-fade-red-600 { background-color: #fee2e2; }
-        .bg-fade-gray-700 { background-color: #e5e7eb; } /* For Unreal */
+      /* Manual Entry Form Styles */
+      #manual-entry-form {
+        transition:
+          opacity 0.3s ease-in-out,
+          max-height 0.4s ease-out;
+      }
+      #manual-entry-form.hidden {
+        opacity: 0;
+        max-height: 0;
+        overflow: hidden;
+        pointer-events: none;
+        margin-top: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+      }
 
-        /* Manual Entry Form Styles */
-        #manual-entry-form { transition: opacity 0.3s ease-in-out, max-height 0.4s ease-out; }
-        #manual-entry-form.hidden { opacity: 0; max-height: 0; overflow: hidden; pointer-events: none; margin-top: 0 !important; padding: 0 !important; border: 0 !important;}
+      /* Hide barcode row specifically */
+      #barcode-row.hidden {
+        display: none;
+      }
 
-        /* Hide barcode row specifically */
-        #barcode-row.hidden { display: none; }
-
-        #comparison-canvas-container canvas {
-            max-width: 100%; /* Scale down to fit container width */
-            height: auto;    /* Maintain aspect ratio */
-            display: block;  /* For centering and proper layout */
-            margin-left: auto; /* Center horizontally */
-            margin-right: auto;/* Center horizontally */
-        }
+      #comparison-canvas-container canvas {
+        max-width: 100%; /* Scale down to fit container width */
+        height: auto; /* Maintain aspect ratio */
+        display: block; /* For centering and proper layout */
+        margin-left: auto; /* Center horizontally */
+        margin-right: auto; /* Center horizontally */
+      }
     </style>
-</head>
-<body class="bg-gray-100 font-sans flex flex-col items-center min-h-screen p-4">
-
+  </head>
+  <body class="bg-gray-100 font-sans flex flex-col items-center min-h-screen p-4">
     <div class="bg-white p-6 md:p-8 rounded-lg shadow-xl w-full max-w-2xl">
-        <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">Protein Meter</h1>
+      <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">Protein Meter</h1>
 
-        <div id="reader" class="mx-auto mb-4 inactive"></div>
-        <div class="text-center mb-6 space-x-2">
-             <button id="scan-barcode-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md mb-2">
-                Scan Barcode
+      <div id="reader" class="mx-auto mb-4 inactive"></div>
+      <div class="text-center mb-6 space-x-2">
+        <button
+          id="scan-barcode-btn"
+          class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md mb-2"
+        >
+          Scan Barcode
+        </button>
+        <button
+          id="manual-entry-btn"
+          class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md mb-2"
+        >
+          Manual Entry
+        </button>
+        <button
+          id="search-food-btn"
+          class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md mb-2"
+        >
+          Search Food
+        </button>
+        <button
+          id="stop-scan-btn"
+          class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden transition duration-300 ease-in-out shadow hover:shadow-md"
+        >
+          Stop Scanning
+        </button>
+      </div>
+
+      <div class="text-center mb-6">
+        <button
+          id="install-pwa-btn"
+          class="bg-purple-600 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md hidden"
+        >
+          Install App...
+        </button>
+      </div>
+
+      <div
+        id="manual-entry-form"
+        class="hidden bg-indigo-50 p-4 md:p-6 rounded-lg border border-indigo-200 mt-6"
+      >
+        <h2 class="text-xl font-semibold text-indigo-800 mb-4">Manual Entry</h2>
+        <form id="entry-form">
+          <div class="mb-3">
+            <label for="manual-name" class="block text-sm font-medium text-gray-700 mb-1"
+              >Product Name (Optional)</label
+            >
+            <input
+              type="text"
+              id="manual-name"
+              name="manual-name"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label for="manual-calories" class="block text-sm font-medium text-gray-700 mb-1"
+                >Calories<span class="text-red-500">*</span></label
+              >
+              <input
+                type="number"
+                id="manual-calories"
+                name="manual-calories"
+                required
+                min="0"
+                step="any"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label for="manual-protein" class="block text-sm font-medium text-gray-700 mb-1"
+                >Protein (g)<span class="text-red-500">*</span></label
+              >
+              <input
+                type="number"
+                id="manual-protein"
+                name="manual-protein"
+                required
+                min="0"
+                step="any"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+          </div>
+          <p id="manual-entry-error" class="text-red-600 text-sm mb-3 hidden"></p>
+          <div class="flex justify-end space-x-3">
+            <button
+              type="button"
+              id="cancel-manual-entry-btn"
+              class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-300"
+            >
+              Cancel
             </button>
-             <button id="manual-entry-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md mb-2">
-                Manual Entry
+            <button
+              type="submit"
+              id="save-manual-entry-btn"
+              class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300"
+            >
+              Save Entry
             </button>
-            <button id="search-food-btn" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md mb-2">Search Food</button>
-             <button id="stop-scan-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden transition duration-300 ease-in-out shadow hover:shadow-md">
-                Stop Scanning
+          </div>
+        </form>
+      </div>
+
+      <div
+        id="search-food-form-container"
+        class="hidden bg-indigo-50 p-4 md:p-6 rounded-lg border border-indigo-200 mt-6"
+      >
+        <h2 class="text-xl font-semibold text-indigo-800 mb-4">Search Food by Name</h2>
+        <form id="search-form">
+          <div class="mb-3">
+            <label for="search-query-input" class="block text-sm font-medium text-gray-700 mb-1"
+              >Food Name<span class="text-red-500">*</span></label
+            >
+            <input
+              type="text"
+              id="search-query-input"
+              name="search-query-input"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          <p id="search-error-message" class="text-red-600 text-sm mb-3 hidden"></p>
+          <div class="flex justify-end space-x-3">
+            <button
+              type="button"
+              id="cancel-search-btn"
+              class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-300"
+            >
+              Cancel
             </button>
-        </div>
+            <button
+              type="submit"
+              id="perform-search-btn"
+              class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300"
+            >
+              Search
+            </button>
+          </div>
+        </form>
+      </div>
 
-         <div class="text-center mb-6">
-            <button id="install-pwa-btn" class="bg-purple-600 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md hidden">
-               Install App...
-           </button>
+      <div
+        id="results-area"
+        class="bg-gray-50 p-4 md:p-6 rounded-lg border border-gray-200 min-h-[150px] mt-6"
+      >
+        <div id="status-message" class="text-gray-600 italic mb-4">
+          Click "Scan Barcode" or "Manual Entry".
         </div>
-
-        <div id="manual-entry-form" class="hidden bg-indigo-50 p-4 md:p-6 rounded-lg border border-indigo-200 mt-6">
-            <h2 class="text-xl font-semibold text-indigo-800 mb-4">Manual Entry</h2>
-            <form id="entry-form">
-                <div class="mb-3">
-                    <label for="manual-name" class="block text-sm font-medium text-gray-700 mb-1">Product Name (Optional)</label>
-                    <input type="text" id="manual-name" name="manual-name" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label for="manual-calories" class="block text-sm font-medium text-gray-700 mb-1">Calories<span class="text-red-500">*</span></label>
-                        <input type="number" id="manual-calories" name="manual-calories" required min="0" step="any" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <div>
-                        <label for="manual-protein" class="block text-sm font-medium text-gray-700 mb-1">Protein (g)<span class="text-red-500">*</span></label>
-                        <input type="number" id="manual-protein" name="manual-protein" required min="0" step="any" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                </div>
-                 <p id="manual-entry-error" class="text-red-600 text-sm mb-3 hidden"></p>
-                <div class="flex justify-end space-x-3">
-                    <button type="button" id="cancel-manual-entry-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-300">
-                        Cancel
-                    </button>
-                    <button type="submit" id="save-manual-entry-btn" class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-                        Save Entry
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <div id="search-food-form-container" class="hidden bg-indigo-50 p-4 md:p-6 rounded-lg border border-indigo-200 mt-6">
-            <h2 class="text-xl font-semibold text-indigo-800 mb-4">Search Food by Name</h2>
-            <form id="search-form">
-                <div class="mb-3">
-                    <label for="search-query-input" class="block text-sm font-medium text-gray-700 mb-1">Food Name<span class="text-red-500">*</span></label>
-                    <input type="text" id="search-query-input" name="search-query-input" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-                <p id="search-error-message" class="text-red-600 text-sm mb-3 hidden"></p>
-                <div class="flex justify-end space-x-3">
-                    <button type="button" id="cancel-search-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-300">
-                        Cancel
-                    </button>
-                    <button type="submit" id="perform-search-btn" class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-                        Search
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <div id="results-area" class="bg-gray-50 p-4 md:p-6 rounded-lg border border-gray-200 min-h-[150px] mt-6">
-            <div id="status-message" class="text-gray-600 italic mb-4">Click "Scan Barcode" or "Manual Entry".</div>
-            <div id="product-info" class="hidden space-y-3">
-                <p><strong class="font-medium text-gray-800 w-28 inline-block">Product:</strong> <span id="product-name" class="text-gray-700 font-semibold"></span></p>
-                <div class="flex items-center space-x-3">
-                    <strong class="font-medium text-gray-800 w-28 inline-block shrink-0">Protein %:</strong>
-                    <div class="percentage-bar-container flex-grow">
-                        <div id="protein-bar" class="percentage-bar-fill" style="width: 0%;">0%</div>
-                    </div>
-                    <span id="protein-label" class="text-sm font-medium text-gray-600 w-24 text-right shrink-0">N/A</span>
-                </div>
-                <p id="barcode-row"><strong class="font-medium text-gray-800 w-28 inline-block">Barcode:</strong>
-                    <span id="barcode-result" class="text-gray-700 mr-2"></span>
-                    <a id="off-link" href="#" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-700 hover:underline text-sm hidden">[View on Open Food Facts]</a>
-                 </p>
-                 <div class="pt-2 text-sm text-gray-600 space-y-1">
-                     <p><strong class="font-medium text-gray-800 w-28 inline-block">Protein:</strong> <span id="protein-grams">N/A</span> <span class="unit-label">/ 100g</span></p>
-                     <p><strong class="font-medium text-gray-800 w-28 inline-block">Calories:</strong> <span id="energy-kcal">N/A</span> kcal <span class="unit-label">/ 100g</span></p>
-                 </div>
-                 <p id="error-message" class="text-red-600 font-medium pt-2"></p>
+        <div id="product-info" class="hidden space-y-3">
+          <p>
+            <strong class="font-medium text-gray-800 w-28 inline-block">Product:</strong>
+            <span id="product-name" class="text-gray-700 font-semibold"></span>
+          </p>
+          <div class="flex items-center space-x-3">
+            <strong class="font-medium text-gray-800 w-28 inline-block shrink-0">Protein %:</strong>
+            <div class="percentage-bar-container flex-grow">
+              <div id="protein-bar" class="percentage-bar-fill" style="width: 0%">0%</div>
             </div>
+            <span
+              id="protein-label"
+              class="text-sm font-medium text-gray-600 w-24 text-right shrink-0"
+              >N/A</span
+            >
+          </div>
+          <p id="barcode-row">
+            <strong class="font-medium text-gray-800 w-28 inline-block">Barcode:</strong>
+            <span id="barcode-result" class="text-gray-700 mr-2"></span>
+            <a
+              id="off-link"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-blue-500 hover:text-blue-700 hover:underline text-sm hidden"
+              >[View on Open Food Facts]</a
+            >
+          </p>
+          <div class="pt-2 text-sm text-gray-600 space-y-1">
+            <p>
+              <strong class="font-medium text-gray-800 w-28 inline-block">Protein:</strong>
+              <span id="protein-grams">N/A</span> <span class="unit-label">/ 100g</span>
+            </p>
+            <p>
+              <strong class="font-medium text-gray-800 w-28 inline-block">Calories:</strong>
+              <span id="energy-kcal">N/A</span> kcal <span class="unit-label">/ 100g</span>
+            </p>
+          </div>
+          <p id="error-message" class="text-red-600 font-medium pt-2"></p>
         </div>
+      </div>
 
-        <div id="search-results-area" class="bg-gray-50 p-4 md:p-6 rounded-lg border border-gray-200 min-h-[100px] mt-6 hidden">
-            <div id="search-spinner" class="hidden text-center p-4">
-                <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p class="text-indigo-600 mt-2 text-sm">Searching...</p>
-            </div>
-            <p id="no-search-results-message" class="text-center text-gray-500 italic p-4">Type a food name and click search.</p>
-            <div id="search-results-list">
-                <!-- Search results will be injected here -->
-            </div>
+      <div
+        id="search-results-area"
+        class="bg-gray-50 p-4 md:p-6 rounded-lg border border-gray-200 min-h-[100px] mt-6 hidden"
+      >
+        <div id="search-spinner" class="hidden text-center p-4">
+          <svg
+            class="animate-spin h-8 w-8 text-indigo-600 mx-auto"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          <p class="text-indigo-600 mt-2 text-sm">Searching...</p>
         </div>
+        <p id="no-search-results-message" class="text-center text-gray-500 italic p-4">
+          Type a food name and click search.
+        </p>
+        <div id="search-results-list">
+          <!-- Search results will be injected here -->
+        </div>
+      </div>
 
-        <div id="history-section" class="mt-8">
-            <div class="flex justify-between items-center mb-3">
-                <h2 class="text-xl font-semibold text-gray-700">Scan History</h2>
-                <div class="space-x-3">
-                    <button id="compare-mode-btn" class="text-sm text-green-500 hover:text-green-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed" disabled>Compare</button>
-                    <button id="manage-history-btn" class="text-sm text-blue-500 hover:text-blue-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed" disabled>Manage History</button>
-                    <button id="clear-all-btn" class="text-sm text-red-500 hover:text-red-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed hidden">Clear All</button>
-                </div>
-            </div>
-            <div id="comparison-actions" class="text-center mb-3 hidden"> <button id="generate-comparison-image-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md" disabled>Generate Comparison Image</button> </div>
-            <div id="history-list" class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-white">
-                <p id="no-history-message" class="text-center text-gray-500 italic p-4">No history yet.</p>
-            </div>
+      <div id="history-section" class="mt-8">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-xl font-semibold text-gray-700">Scan History</h2>
+          <div class="space-x-3">
+            <button
+              id="compare-mode-btn"
+              class="text-sm text-green-500 hover:text-green-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled
+            >
+              Compare
+            </button>
+            <button
+              id="manage-history-btn"
+              class="text-sm text-blue-500 hover:text-blue-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled
+            >
+              Manage History
+            </button>
+            <button
+              id="clear-all-btn"
+              class="text-sm text-red-500 hover:text-red-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed hidden"
+            >
+              Clear All
+            </button>
+          </div>
         </div>
+        <div id="comparison-actions" class="text-center mb-3 hidden">
+          <button
+            id="generate-comparison-image-btn"
+            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md"
+            disabled
+          >
+            Generate Comparison Image
+          </button>
+        </div>
+        <div
+          id="history-list"
+          class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-white"
+        >
+          <p id="no-history-message" class="text-center text-gray-500 italic p-4">
+            No history yet.
+          </p>
+        </div>
+      </div>
     </div>
 
     <footer class="text-center text-gray-500 text-sm mt-8">
-        Powered by <a href="https://openfoodfacts.org/" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline">Open Food Facts</a> and html5-qrcode.
+      Powered by
+      <a
+        href="https://openfoodfacts.org/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-blue-500 hover:underline"
+        >Open Food Facts</a
+      >
+      and html5-qrcode.
     </footer>
 
-    <div id="comparison-modal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 hidden z-50">
-        <div class="bg-white p-6 rounded-lg shadow-xl max-w-3xl w-full">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Food Comparison</h2>
-            <div id="comparison-canvas-container" class="mb-4 border border-gray-300 rounded overflow-auto max-h-[60vh]">
-                canvas will go here
-            </div>
-            <div class="text-center">
-                <button id="download-comparison-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg mr-2">Download Image</button>
-                <button id="close-comparison-modal-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Close</button>
-            </div>
+    <div
+      id="comparison-modal"
+      class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 hidden z-50"
+    >
+      <div class="bg-white p-6 rounded-lg shadow-xl max-w-3xl w-full">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Food Comparison</h2>
+        <div
+          id="comparison-canvas-container"
+          class="mb-4 border border-gray-300 rounded overflow-auto max-h-[60vh]"
+        >
+          canvas will go here
         </div>
+        <div class="text-center">
+          <button
+            id="download-comparison-btn"
+            class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg mr-2"
+          >
+            Download Image
+          </button>
+          <button
+            id="close-comparison-modal-btn"
+            class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg"
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </div>
 
     <script>
-        // --- DOM Elements ---
-        const installPwaBtn = document.getElementById('install-pwa-btn');
-        const readerElement = document.getElementById('reader');
-        const scanBarcodeBtn = document.getElementById('scan-barcode-btn');
-        const manualEntryBtn = document.getElementById('manual-entry-btn');
-        const stopScanBtn = document.getElementById('stop-scan-btn');
-        const resultsArea = document.getElementById('results-area');
-        const statusMessage = document.getElementById('status-message');
-        const productInfoDiv = document.getElementById('product-info');
-        const barcodeResultSpan = document.getElementById('barcode-result');
-        const productNameSpan = document.getElementById('product-name');
-        const proteinBar = document.getElementById('protein-bar');
-        const proteinLabel = document.getElementById('protein-label');
-        const proteinGramsSpan = document.getElementById('protein-grams');
-        const energyKcalSpan = document.getElementById('energy-kcal');
-        const errorMessageSpan = document.getElementById('error-message');
-        const offLink = document.getElementById('off-link');
-        const barcodeRow = document.getElementById('barcode-row');
-        const unitLabels = document.querySelectorAll('.unit-label');
-        const manualEntryFormDiv = document.getElementById('manual-entry-form');
-        const entryForm = document.getElementById('entry-form');
-        const manualNameInput = document.getElementById('manual-name');
-        const manualCaloriesInput = document.getElementById('manual-calories');
-        const manualProteinInput = document.getElementById('manual-protein');
-        const cancelManualEntryBtn = document.getElementById('cancel-manual-entry-btn');
-        const manualEntryError = document.getElementById('manual-entry-error');
-        const historySection = document.getElementById('history-section');
-        const historyList = document.getElementById('history-list');
-        const clearAllBtn = document.getElementById('clear-all-btn');
-        const manageHistoryBtn = document.getElementById('manage-history-btn');
-        const noHistoryMessage = document.getElementById('no-history-message');
-        const compareModeBtn = document.getElementById('compare-mode-btn');
-        const comparisonActionsDiv = document.getElementById('comparison-actions');
-        const generateComparisonImageBtn = document.getElementById('generate-comparison-image-btn');
-        const comparisonModal = document.getElementById('comparison-modal');
-        const comparisonCanvasContainer = document.getElementById('comparison-canvas-container');
-        const downloadComparisonBtn = document.getElementById('download-comparison-btn');
-        const closeComparisonModalBtn = document.getElementById('close-comparison-modal-btn');
+      // --- DOM Elements ---
+      const installPwaBtn = document.getElementById('install-pwa-btn')
+      const readerElement = document.getElementById('reader')
+      const scanBarcodeBtn = document.getElementById('scan-barcode-btn')
+      const manualEntryBtn = document.getElementById('manual-entry-btn')
+      const stopScanBtn = document.getElementById('stop-scan-btn')
+      const resultsArea = document.getElementById('results-area')
+      const statusMessage = document.getElementById('status-message')
+      const productInfoDiv = document.getElementById('product-info')
+      const barcodeResultSpan = document.getElementById('barcode-result')
+      const productNameSpan = document.getElementById('product-name')
+      const proteinBar = document.getElementById('protein-bar')
+      const proteinLabel = document.getElementById('protein-label')
+      const proteinGramsSpan = document.getElementById('protein-grams')
+      const energyKcalSpan = document.getElementById('energy-kcal')
+      const errorMessageSpan = document.getElementById('error-message')
+      const offLink = document.getElementById('off-link')
+      const barcodeRow = document.getElementById('barcode-row')
+      const unitLabels = document.querySelectorAll('.unit-label')
+      const manualEntryFormDiv = document.getElementById('manual-entry-form')
+      const entryForm = document.getElementById('entry-form')
+      const manualNameInput = document.getElementById('manual-name')
+      const manualCaloriesInput = document.getElementById('manual-calories')
+      const manualProteinInput = document.getElementById('manual-protein')
+      const cancelManualEntryBtn = document.getElementById('cancel-manual-entry-btn')
+      const manualEntryError = document.getElementById('manual-entry-error')
+      const historySection = document.getElementById('history-section')
+      const historyList = document.getElementById('history-list')
+      const clearAllBtn = document.getElementById('clear-all-btn')
+      const manageHistoryBtn = document.getElementById('manage-history-btn')
+      const noHistoryMessage = document.getElementById('no-history-message')
+      const compareModeBtn = document.getElementById('compare-mode-btn')
+      const comparisonActionsDiv = document.getElementById('comparison-actions')
+      const generateComparisonImageBtn = document.getElementById('generate-comparison-image-btn')
+      const comparisonModal = document.getElementById('comparison-modal')
+      const comparisonCanvasContainer = document.getElementById('comparison-canvas-container')
+      const downloadComparisonBtn = document.getElementById('download-comparison-btn')
+      const closeComparisonModalBtn = document.getElementById('close-comparison-modal-btn')
 
-        // Search Mode Elements
-        const searchFoodBtn = document.getElementById('search-food-btn');
-        const searchFoodFormContainer = document.getElementById('search-food-form-container');
-        const searchForm = document.getElementById('search-form');
-        const searchQueryInput = document.getElementById('search-query-input');
-        const searchErrorMessage = document.getElementById('search-error-message');
-        const cancelSearchBtn = document.getElementById('cancel-search-btn');
-        const performSearchBtn = document.getElementById('perform-search-btn');
-        const searchResultsArea = document.getElementById('search-results-area');
-        const noSearchResultsMessage = document.getElementById('no-search-results-message');
-        const searchResultsList = document.getElementById('search-results-list');
-        const searchSpinner = document.getElementById('search-spinner');
+      // Search Mode Elements
+      const searchFoodBtn = document.getElementById('search-food-btn')
+      const searchFoodFormContainer = document.getElementById('search-food-form-container')
+      const searchForm = document.getElementById('search-form')
+      const searchQueryInput = document.getElementById('search-query-input')
+      const searchErrorMessage = document.getElementById('search-error-message')
+      const cancelSearchBtn = document.getElementById('cancel-search-btn')
+      const performSearchBtn = document.getElementById('perform-search-btn')
+      const searchResultsArea = document.getElementById('search-results-area')
+      const noSearchResultsMessage = document.getElementById('no-search-results-message')
+      const searchResultsList = document.getElementById('search-results-list')
+      const searchSpinner = document.getElementById('search-spinner')
 
-        // --- State Variables ---
-        let deferredPrompt;
-        let html5QrCode = null;
-        let isScanning = false;
-        let lastScannedBarcode = null;
-        let scanHistory = [];
-        let isDeletingHistoryMode = false;
-        let isComparisonMode = false;
-        let selectedForComparison = [];
+      // --- State Variables ---
+      let deferredPrompt
+      let html5QrCode = null
+      let isScanning = false
+      let lastScannedBarcode = null
+      let scanHistory = []
+      let isDeletingHistoryMode = false
+      let isComparisonMode = false
+      let selectedForComparison = []
 
-        // --- Local Storage Key ---
-        const HISTORY_STORAGE_KEY = 'proteinMeterHistory';
+      // --- Local Storage Key ---
+      const HISTORY_STORAGE_KEY = 'proteinMeterHistory'
 
-        // --- Scanner Initialization ---
-        function initializeScanner() {
-             if (!html5QrCode) {
-                 html5QrCode = new Html5Qrcode("reader");
-             }
+      // --- Scanner Initialization ---
+      function initializeScanner() {
+        if (!html5QrCode) {
+          html5QrCode = new Html5Qrcode('reader')
+        }
+      }
+
+      // --- Protein Percentage Mapping ---
+      function getProteinInfo(percentage) {
+        let colorClass = 'bg-gray-400',
+          fadedColorClass = 'bg-fade-gray-400',
+          label = 'N/A'
+        let displayPercentage = 0,
+          actualPercentage = 0
+
+        if (isNaN(percentage) || percentage < 0) {
+          displayPercentage = 0
+          actualPercentage = 0
+        } else {
+          actualPercentage = percentage
+          displayPercentage = Math.min(actualPercentage, 100)
+          if (actualPercentage === 0) {
+            label = 'Zero'
+            colorClass = 'bg-gray-500'
+            fadedColorClass = 'bg-fade-gray-500'
+          } else if (actualPercentage < 15) {
+            label = 'Low'
+            colorClass = 'bg-red-500'
+            fadedColorClass = 'bg-fade-red-500'
+          } else if (actualPercentage < 30) {
+            label = 'Okay'
+            colorClass = 'bg-yellow-500'
+            fadedColorClass = 'bg-fade-yellow-500'
+          } else if (actualPercentage < 50) {
+            label = 'Good'
+            colorClass = 'bg-blue-500'
+            fadedColorClass = 'bg-fade-blue-500'
+          } else if (actualPercentage < 70) {
+            label = 'Great'
+            colorClass = 'bg-green-500'
+            fadedColorClass = 'bg-fade-green-500'
+          } else if (actualPercentage <= 100) {
+            label = 'Amazing!'
+            colorClass = 'bg-purple-600'
+            fadedColorClass = 'bg-fade-purple-600'
+          } else {
+            label = 'Unreal'
+            colorClass = 'bg-gray-700'
+            fadedColorClass = 'bg-fade-gray-700'
+          }
+        }
+        return {
+          actualPercentage: actualPercentage.toFixed(1),
+          displayPercentage: displayPercentage.toFixed(1),
+          colorClass,
+          fadedColorClass,
+          label,
+        }
+      }
+
+      // --- History Management ---
+      function loadHistory() {
+        const storedHistory = localStorage.getItem(HISTORY_STORAGE_KEY)
+        scanHistory = storedHistory ? JSON.parse(storedHistory) : []
+        renderHistory()
+        compareModeBtn.disabled = scanHistory.length === 0 // Added
+      }
+      function saveHistory() {
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(scanHistory))
+        manageHistoryBtn.disabled = scanHistory.length === 0
+        compareModeBtn.disabled = scanHistory.length === 0 // Added
+        noHistoryMessage.style.display = scanHistory.length === 0 ? 'block' : 'none'
+      }
+
+      function addToHistory(item) {
+        if (scanHistory.length > 0) {
+          const mostRecentEntry = scanHistory[0]
+          if (
+            item.barcode === mostRecentEntry.barcode &&
+            item.productName === mostRecentEntry.productName &&
+            item.proteinGrams === mostRecentEntry.proteinGrams &&
+            item.energyKcal === mostRecentEntry.energyKcal &&
+            item.isManual === mostRecentEntry.isManual &&
+            item.proteinActualPercentage === mostRecentEntry.proteinActualPercentage
+          ) {
+            console.log('Duplicate consecutive entry prevented:', item)
+            return
+          }
+        }
+        scanHistory.unshift(item)
+        saveHistory()
+        renderHistory()
+      }
+
+      function deleteHistoryItem(itemTimestamp) {
+        scanHistory = scanHistory.filter((item) => item.timestamp !== itemTimestamp)
+        // After scanHistory = scanHistory.filter(...)
+        if (isComparisonMode) {
+          const oldSelectionLength = selectedForComparison.length
+          selectedForComparison = selectedForComparison.filter(
+            (selItem) => selItem.timestamp !== itemTimestamp
+          )
+          if (selectedForComparison.length !== oldSelectionLength) {
+            // If a selected item was deleted
+            generateComparisonImageBtn.disabled = selectedForComparison.length < 2
+          }
+        }
+        saveHistory()
+        renderHistory()
+      }
+
+      function toggleDeleteMode() {
+        if (!isDeletingHistoryMode && isComparisonMode) {
+          // True if trying to enter delete mode while comparison mode is active
+          isComparisonMode = false // Just update the state variable
+          selectedForComparison = [] // Clear selections if comparison mode is being turned off
+        }
+        isDeletingHistoryMode = !isDeletingHistoryMode // Toggle the primary state
+
+        renderHistory()
+      }
+
+      function clearAllHistory() {
+        if (confirm('Are you sure you want to clear the entire history?')) {
+          scanHistory = []
+          // After scanHistory = [];
+          if (isComparisonMode) {
+            selectedForComparison = []
+            generateComparisonImageBtn.disabled = true
+          }
+          saveHistory()
+          renderHistory()
+        }
+      }
+      function renderHistory() {
+        historyList.innerHTML = ''
+        // At the beginning of renderHistory()
+        // Ensure text is correct before setting disabled state
+        manageHistoryBtn.textContent = isDeletingHistoryMode ? 'Done' : 'Manage History'
+
+        // Corrected disabled logic for manageHistoryBtn
+        // Manage History Button visibility and state
+        if (isComparisonMode) {
+          manageHistoryBtn.classList.add('hidden')
+        } else {
+          manageHistoryBtn.classList.remove('hidden')
+          manageHistoryBtn.textContent = isDeletingHistoryMode ? 'Done' : 'Manage History'
+          // Disabled if not in delete mode AND history is empty
+          manageHistoryBtn.disabled = !isDeletingHistoryMode && scanHistory.length === 0
         }
 
-        // --- Protein Percentage Mapping ---
-        function getProteinInfo(percentage) {
-            let colorClass = 'bg-gray-400', fadedColorClass = 'bg-fade-gray-400', label = 'N/A';
-            let displayPercentage = 0, actualPercentage = 0;
-
-            if (isNaN(percentage) || percentage < 0) {
-                 displayPercentage = 0; actualPercentage = 0;
-            } else {
-                actualPercentage = percentage;
-                displayPercentage = Math.min(actualPercentage, 100);
-                 if (actualPercentage === 0) { label = 'Zero'; colorClass = 'bg-gray-500'; fadedColorClass = 'bg-fade-gray-500'; }
-                 else if (actualPercentage < 15) { label = 'Low'; colorClass = 'bg-red-500'; fadedColorClass = 'bg-fade-red-500'; }
-                 else if (actualPercentage < 30) { label = 'Okay'; colorClass = 'bg-yellow-500'; fadedColorClass = 'bg-fade-yellow-500'; }
-                 else if (actualPercentage < 50) { label = 'Good'; colorClass = 'bg-blue-500'; fadedColorClass = 'bg-fade-blue-500'; }
-                 else if (actualPercentage < 70) { label = 'Great'; colorClass = 'bg-green-500'; fadedColorClass = 'bg-fade-green-500'; }
-                 else if (actualPercentage <= 100) { label = 'Amazing!'; colorClass = 'bg-purple-600'; fadedColorClass = 'bg-fade-purple-600'; }
-                 else { label = 'Unreal'; colorClass = 'bg-gray-700'; fadedColorClass = 'bg-fade-gray-700'; }
-            }
-            return { actualPercentage: actualPercentage.toFixed(1), displayPercentage: displayPercentage.toFixed(1), colorClass, fadedColorClass, label };
+        // Compare Mode Button visibility and state
+        if (isDeletingHistoryMode) {
+          compareModeBtn.classList.add('hidden')
+        } else {
+          compareModeBtn.classList.remove('hidden')
+          // Set text and color based on whether we are in comparison mode or not
+          if (isComparisonMode) {
+            compareModeBtn.textContent = 'Cancel' // CHANGED
+            compareModeBtn.classList.remove('text-green-500', 'hover:text-green-700')
+            compareModeBtn.classList.add('text-red-500', 'hover:text-red-700')
+          } else {
+            compareModeBtn.textContent = 'Compare' // CHANGED
+            compareModeBtn.classList.remove('text-red-500', 'hover:text-red-700')
+            compareModeBtn.classList.add('text-green-500', 'hover:text-green-700')
+          }
+          // Disabled if not in comparison mode AND history is empty
+          compareModeBtn.disabled = !isComparisonMode && scanHistory.length === 0
         }
 
-         // --- History Management ---
-         function loadHistory() {
-            const storedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
-            scanHistory = storedHistory ? JSON.parse(storedHistory) : [];
-            renderHistory();
-            compareModeBtn.disabled = scanHistory.length === 0; // Added
-         }
-         function saveHistory() {
-             localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(scanHistory));
-             manageHistoryBtn.disabled = scanHistory.length === 0;
-             compareModeBtn.disabled = scanHistory.length === 0; // Added
-             noHistoryMessage.style.display = scanHistory.length === 0 ? 'block' : 'none';
-         }
+        // Clear All button visibility (this should remain as it was, shown only in delete mode with items)
+        clearAllBtn.classList.toggle('hidden', !(isDeletingHistoryMode && scanHistory.length > 0))
 
-         function addToHistory(item) {
-            if (scanHistory.length > 0) {
-                const mostRecentEntry = scanHistory[0];
-                if (item.barcode === mostRecentEntry.barcode &&
-                    item.productName === mostRecentEntry.productName &&
-                    item.proteinGrams === mostRecentEntry.proteinGrams &&
-                    item.energyKcal === mostRecentEntry.energyKcal &&
-                    item.isManual === mostRecentEntry.isManual &&
-                    item.proteinActualPercentage === mostRecentEntry.proteinActualPercentage
-                    ) {
-                    console.log("Duplicate consecutive entry prevented:", item);
-                    return;
-                }
-            }
-            scanHistory.unshift(item);
-            saveHistory();
-            renderHistory();
-         }
-
-         function deleteHistoryItem(itemTimestamp) {
-            scanHistory = scanHistory.filter(item => item.timestamp !== itemTimestamp);
-            // After scanHistory = scanHistory.filter(...)
-            if (isComparisonMode) {
-                const oldSelectionLength = selectedForComparison.length;
-                selectedForComparison = selectedForComparison.filter(selItem => selItem.timestamp !== itemTimestamp);
-                if (selectedForComparison.length !== oldSelectionLength) { // If a selected item was deleted
-                     generateComparisonImageBtn.disabled = selectedForComparison.length < 2;
-                }
-            }
-            saveHistory();
-            renderHistory();
-         }
-
-         function toggleDeleteMode() {
-            if (!isDeletingHistoryMode && isComparisonMode) { // True if trying to enter delete mode while comparison mode is active
-                isComparisonMode = false; // Just update the state variable
-                selectedForComparison = []; // Clear selections if comparison mode is being turned off
-            }
-            isDeletingHistoryMode = !isDeletingHistoryMode; // Toggle the primary state
-
-            renderHistory();
-         }
-
-
-         function clearAllHistory() {
-             if (confirm("Are you sure you want to clear the entire history?")) {
-                 scanHistory = [];
-                // After scanHistory = [];
-                if (isComparisonMode) {
-                    selectedForComparison = [];
-                    generateComparisonImageBtn.disabled = true;
-                }
-                 saveHistory();
-                 renderHistory();
-             }
-         }
-         function renderHistory() {
-             historyList.innerHTML = '';
-            // At the beginning of renderHistory()
-            // Ensure text is correct before setting disabled state
-            manageHistoryBtn.textContent = isDeletingHistoryMode ? 'Done' : 'Manage History';
-
-            // Corrected disabled logic for manageHistoryBtn
-            // Manage History Button visibility and state
-            if (isComparisonMode) {
-                manageHistoryBtn.classList.add('hidden');
-            } else {
-                manageHistoryBtn.classList.remove('hidden');
-                manageHistoryBtn.textContent = isDeletingHistoryMode ? 'Done' : 'Manage History';
-                // Disabled if not in delete mode AND history is empty
-                manageHistoryBtn.disabled = (!isDeletingHistoryMode && scanHistory.length === 0);
-            }
-
-            // Compare Mode Button visibility and state
-            if (isDeletingHistoryMode) {
-                compareModeBtn.classList.add('hidden');
-            } else {
-                compareModeBtn.classList.remove('hidden');
-                // Set text and color based on whether we are in comparison mode or not
-                if (isComparisonMode) {
-                    compareModeBtn.textContent = 'Cancel'; // CHANGED
-                    compareModeBtn.classList.remove('text-green-500', 'hover:text-green-700');
-                    compareModeBtn.classList.add('text-red-500', 'hover:text-red-700');
-                } else {
-                    compareModeBtn.textContent = 'Compare'; // CHANGED
-                    compareModeBtn.classList.remove('text-red-500', 'hover:text-red-700');
-                    compareModeBtn.classList.add('text-green-500', 'hover:text-green-700');
-                }
-                // Disabled if not in comparison mode AND history is empty
-                compareModeBtn.disabled = (!isComparisonMode && scanHistory.length === 0);
-            }
-
-            // Clear All button visibility (this should remain as it was, shown only in delete mode with items)
-            clearAllBtn.classList.toggle('hidden', !(isDeletingHistoryMode && scanHistory.length > 0));
-
-            // Comparison actions div (generate button) visibility
-            comparisonActionsDiv.classList.toggle('hidden', !isComparisonMode);
-            if (isComparisonMode) { // If comparison mode is active, ensure generate button state is correct
-                 generateComparisonImageBtn.disabled = selectedForComparison.length < 2;
-            }
-
-
-            // Handling of scanHistory.length === 0 (should be at the end of button/UI updates for modes)
-            if (scanHistory.length === 0) {
-                noHistoryMessage.style.display = 'block';
-                historyList.innerHTML = ''; // Clear any cards
-                historyList.appendChild(noHistoryMessage);
-
-                // If history is empty, both modes should effectively be off.
-                // Ensure state variables are false if they somehow were true.
-                if (isComparisonMode) isComparisonMode = false;
-                if (isDeletingHistoryMode) isDeletingHistoryMode = false;
-
-                // Reset Manage History button
-                manageHistoryBtn.classList.remove('hidden');
-                manageHistoryBtn.textContent = 'Manage History';
-                manageHistoryBtn.disabled = true;
-
-                // Reset Compare Mode button
-                compareModeBtn.classList.remove('hidden');
-                compareModeBtn.textContent = 'Compare'; // CHANGED
-                compareModeBtn.classList.remove('text-red-500', 'hover:text-red-700');
-                compareModeBtn.classList.add('text-green-500', 'hover:text-green-700');
-                compareModeBtn.disabled = true;
-
-                clearAllBtn.classList.add('hidden');
-                comparisonActionsDiv.classList.add('hidden');
-
-                // No cards to render, so return
-                return;
-            } else {
-                noHistoryMessage.style.display = 'none';
-            }
-
-            // Filter selectedForComparison to remove any items no longer in scanHistory (if comparison mode is active)
-            // This was previously at the end, but should be done before rendering cards if it affects checkbox states.
-            // However, createHistoryCard itself checks against selectedForComparison, so filtering here is mainly for generateBtn state.
-            // Let's keep it after card rendering, just before returning if not empty, or if it's tied to generateBtn state.
-            // The current placement (after card rendering, as per previous version) is fine for generateBtn state.
-            // The subtask description for renderHistory didn't specify moving this filter, so we'll assume it's fine.
-
-             scanHistory.forEach(item => historyList.appendChild(createHistoryCard(item)));
-
-            // This was the previous location for this block. It's fine here.
-            if (isComparisonMode) {
-                const currentHistoryTimestamps = new Set(scanHistory.map(hItem => hItem.timestamp));
-                selectedForComparison = selectedForComparison.filter(selItem => currentHistoryTimestamps.has(selItem.timestamp));
-                generateComparisonImageBtn.disabled = selectedForComparison.length < 2;
-            }
-         }
-
-        function toggleComparisonMode() {
-            if (!isComparisonMode && isDeletingHistoryMode) { // True if trying to enter comparison mode while delete mode is active
-                isDeletingHistoryMode = false; // Just update the state variable; renderHistory will handle UI
-            }
-            isComparisonMode = !isComparisonMode; // Toggle the primary state
-
-            if (isComparisonMode) {
-                selectedForComparison = []; // Clear selections when entering mode
-                // Update button text/color immediately for better responsiveness, renderHistory will also affirm this
-                compareModeBtn.textContent = 'Cancel'; // CHANGED
-                compareModeBtn.classList.remove('text-green-500', 'hover:text-green-700');
-                compareModeBtn.classList.add('text-red-500', 'hover:text-red-700');
-            }
-            // On exiting, renderHistory will set the correct text/color for compareModeBtn
-            renderHistory();
+        // Comparison actions div (generate button) visibility
+        comparisonActionsDiv.classList.toggle('hidden', !isComparisonMode)
+        if (isComparisonMode) {
+          // If comparison mode is active, ensure generate button state is correct
+          generateComparisonImageBtn.disabled = selectedForComparison.length < 2
         }
 
-         function createHistoryCard(item) {
-             const card = document.createElement('div');
-             card.className = `history-card ${item.fadedColorClass || 'bg-fade-gray-400'}`;
-             if (isDeletingHistoryMode) {
-                card.classList.add('deleting-mode');
-             }
+        // Handling of scanHistory.length === 0 (should be at the end of button/UI updates for modes)
+        if (scanHistory.length === 0) {
+          noHistoryMessage.style.display = 'block'
+          historyList.innerHTML = '' // Clear any cards
+          historyList.appendChild(noHistoryMessage)
 
-            const summaryWrapper = document.createElement('div'); // Keep this line
-            summaryWrapper.className = 'history-summary-wrapper'; // Keep this line
+          // If history is empty, both modes should effectively be off.
+          // Ensure state variables are false if they somehow were true.
+          if (isComparisonMode) isComparisonMode = false
+          if (isDeletingHistoryMode) isDeletingHistoryMode = false
 
-            if (isComparisonMode) {
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.classList.add('comparison-checkbox', 'form-checkbox', 'h-5', 'w-5', 'text-indigo-600', 'transition', 'duration-150', 'ease-in-out', 'mr-3', 'ml-2', 'flex-shrink-0');
-                checkbox.setAttribute('data-timestamp', item.timestamp); // Use timestamp as a unique ID
+          // Reset Manage History button
+          manageHistoryBtn.classList.remove('hidden')
+          manageHistoryBtn.textContent = 'Manage History'
+          manageHistoryBtn.disabled = true
 
-                // Check if this item is already selected
-                checkbox.checked = selectedForComparison.some(selectedItem => selectedItem.timestamp === item.timestamp);
+          // Reset Compare Mode button
+          compareModeBtn.classList.remove('hidden')
+          compareModeBtn.textContent = 'Compare' // CHANGED
+          compareModeBtn.classList.remove('text-red-500', 'hover:text-red-700')
+          compareModeBtn.classList.add('text-green-500', 'hover:text-green-700')
+          compareModeBtn.disabled = true
 
-                checkbox.addEventListener('change', () => {
-                    if (checkbox.checked) {
-                        // Add the full item to selectedForComparison if not already present
-                        if (!selectedForComparison.some(selectedItem => selectedItem.timestamp === item.timestamp)) {
-                            selectedForComparison.push(item);
-                        }
-                    } else {
-                        // Remove item from selectedForComparison
-                        selectedForComparison = selectedForComparison.filter(selectedItem => selectedItem.timestamp !== item.timestamp);
-                    }
-                    // Update "Generate Comparison Image" button state
-                    generateComparisonImageBtn.disabled = selectedForComparison.length < 2;
-                });
-                card.appendChild(checkbox); // Prepend checkbox to the card.
+          clearAllBtn.classList.add('hidden')
+          comparisonActionsDiv.classList.add('hidden')
+
+          // No cards to render, so return
+          return
+        } else {
+          noHistoryMessage.style.display = 'none'
+        }
+
+        // Filter selectedForComparison to remove any items no longer in scanHistory (if comparison mode is active)
+        // This was previously at the end, but should be done before rendering cards if it affects checkbox states.
+        // However, createHistoryCard itself checks against selectedForComparison, so filtering here is mainly for generateBtn state.
+        // Let's keep it after card rendering, just before returning if not empty, or if it's tied to generateBtn state.
+        // The current placement (after card rendering, as per previous version) is fine for generateBtn state.
+        // The subtask description for renderHistory didn't specify moving this filter, so we'll assume it's fine.
+
+        scanHistory.forEach((item) => historyList.appendChild(createHistoryCard(item)))
+
+        // This was the previous location for this block. It's fine here.
+        if (isComparisonMode) {
+          const currentHistoryTimestamps = new Set(scanHistory.map((hItem) => hItem.timestamp))
+          selectedForComparison = selectedForComparison.filter((selItem) =>
+            currentHistoryTimestamps.has(selItem.timestamp)
+          )
+          generateComparisonImageBtn.disabled = selectedForComparison.length < 2
+        }
+      }
+
+      function toggleComparisonMode() {
+        if (!isComparisonMode && isDeletingHistoryMode) {
+          // True if trying to enter comparison mode while delete mode is active
+          isDeletingHistoryMode = false // Just update the state variable; renderHistory will handle UI
+        }
+        isComparisonMode = !isComparisonMode // Toggle the primary state
+
+        if (isComparisonMode) {
+          selectedForComparison = [] // Clear selections when entering mode
+          // Update button text/color immediately for better responsiveness, renderHistory will also affirm this
+          compareModeBtn.textContent = 'Cancel' // CHANGED
+          compareModeBtn.classList.remove('text-green-500', 'hover:text-green-700')
+          compareModeBtn.classList.add('text-red-500', 'hover:text-red-700')
+        }
+        // On exiting, renderHistory will set the correct text/color for compareModeBtn
+        renderHistory()
+      }
+
+      function createHistoryCard(item) {
+        const card = document.createElement('div')
+        card.className = `history-card ${item.fadedColorClass || 'bg-fade-gray-400'}`
+        if (isDeletingHistoryMode) {
+          card.classList.add('deleting-mode')
+        }
+
+        const summaryWrapper = document.createElement('div') // Keep this line
+        summaryWrapper.className = 'history-summary-wrapper' // Keep this line
+
+        if (isComparisonMode) {
+          const checkbox = document.createElement('input')
+          checkbox.type = 'checkbox'
+          checkbox.classList.add(
+            'comparison-checkbox',
+            'form-checkbox',
+            'h-5',
+            'w-5',
+            'text-indigo-600',
+            'transition',
+            'duration-150',
+            'ease-in-out',
+            'mr-3',
+            'ml-2',
+            'flex-shrink-0'
+          )
+          checkbox.setAttribute('data-timestamp', item.timestamp) // Use timestamp as a unique ID
+
+          // Check if this item is already selected
+          checkbox.checked = selectedForComparison.some(
+            (selectedItem) => selectedItem.timestamp === item.timestamp
+          )
+
+          checkbox.addEventListener('change', () => {
+            if (checkbox.checked) {
+              // Add the full item to selectedForComparison if not already present
+              if (
+                !selectedForComparison.some(
+                  (selectedItem) => selectedItem.timestamp === item.timestamp
+                )
+              ) {
+                selectedForComparison.push(item)
+              }
+            } else {
+              // Remove item from selectedForComparison
+              selectedForComparison = selectedForComparison.filter(
+                (selectedItem) => selectedItem.timestamp !== item.timestamp
+              )
             }
-            // const summaryWrapper = document.createElement('div'); // MOVED UP
-             summaryWrapper.className = 'history-summary-wrapper';
+            // Update "Generate Comparison Image" button state
+            generateComparisonImageBtn.disabled = selectedForComparison.length < 2
+          })
+          card.appendChild(checkbox) // Prepend checkbox to the card.
+        }
+        // const summaryWrapper = document.createElement('div'); // MOVED UP
+        summaryWrapper.className = 'history-summary-wrapper'
 
-             const summary = document.createElement('div');
-             summary.className = 'history-summary';
-             summary.innerHTML = `
+        const summary = document.createElement('div')
+        summary.className = 'history-summary'
+        summary.innerHTML = `
                  <span class="font-medium text-sm truncate product-name-summary pr-2">${item.productName || (item.isManual ? 'Manual Entry' : 'N/A')}</span>
-                 <span class="text-xs font-semibold whitespace-nowrap">${item.proteinActualPercentage}% ${item.proteinLabel || ''}</span>`;
-             summary.onclick = () => {
-                if (!isComparisonMode && !isDeletingHistoryMode) { // Only allow expansion if not in comparison or deleting mode
-                    card.classList.toggle('expanded');
-                } else if (isComparisonMode) {
-                    // If in comparison mode, clicking the summary should toggle the checkbox
-                    const checkbox = card.querySelector('.comparison-checkbox');
-                    if (checkbox) {
-                        checkbox.checked = !checkbox.checked;
-                        // Manually trigger change event to update selection array and button state
-                        checkbox.dispatchEvent(new Event('change'));
-                    }
-                }
-             };
-             summaryWrapper.appendChild(summary);
+                 <span class="text-xs font-semibold whitespace-nowrap">${item.proteinActualPercentage}% ${item.proteinLabel || ''}</span>`
+        summary.onclick = () => {
+          if (!isComparisonMode && !isDeletingHistoryMode) {
+            // Only allow expansion if not in comparison or deleting mode
+            card.classList.toggle('expanded')
+          } else if (isComparisonMode) {
+            // If in comparison mode, clicking the summary should toggle the checkbox
+            const checkbox = card.querySelector('.comparison-checkbox')
+            if (checkbox) {
+              checkbox.checked = !checkbox.checked
+              // Manually trigger change event to update selection array and button state
+              checkbox.dispatchEvent(new Event('change'))
+            }
+          }
+        }
+        summaryWrapper.appendChild(summary)
 
-             const details = document.createElement('div');
-             details.className = 'history-details text-xs space-y-1';
-             const unitLabel = item.isManual ? '/ serving' : '/ 100g';
-             // Added product name to details for wrapping
-             details.innerHTML = `
+        const details = document.createElement('div')
+        details.className = 'history-details text-xs space-y-1'
+        const unitLabel = item.isManual ? '/ serving' : '/ 100g'
+        // Added product name to details for wrapping
+        details.innerHTML = `
                  <p class="history-item-name-details">${item.productName || (item.isManual ? 'Manual Entry' : 'N/A')}</p>
                  <div class="flex items-center space-x-2">
                      <strong class="font-medium text-gray-700 w-20 inline-block shrink-0">Protein %:</strong>
@@ -614,640 +927,736 @@
                  ${item.barcode ? `<p><strong class="font-medium text-gray-700 w-20 inline-block">Barcode:</strong><span class="text-gray-600 mr-1">${item.barcode}</span><a href="https://world.openfoodfacts.org/product/${item.barcode}" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-700 hover:underline">[View]</a></p>` : ''}
                  <p><strong class="font-medium text-gray-700 w-20 inline-block">Protein:</strong> <span class="text-gray-600">${item.proteinGrams || 'N/A'} ${unitLabel}</span></p>
                  <p><strong class="font-medium text-gray-700 w-20 inline-block">Calories:</strong> <span class="text-gray-600">${item.energyKcal || 'N/A'} kcal ${unitLabel}</span></p>
-                 ${item.errorMessage ? `<p class="text-red-600"><strong class="font-medium text-gray-700 w-20 inline-block">Note:</strong> ${item.errorMessage}</p>` : ''}`;
-             summaryWrapper.appendChild(details);
-             card.appendChild(summaryWrapper);
+                 ${item.errorMessage ? `<p class="text-red-600"><strong class="font-medium text-gray-700 w-20 inline-block">Note:</strong> ${item.errorMessage}</p>` : ''}`
+        summaryWrapper.appendChild(details)
+        card.appendChild(summaryWrapper)
 
-             const deleteBtn = document.createElement('button');
-             deleteBtn.className = 'delete-history-item-btn';
-             deleteBtn.innerHTML = `
+        const deleteBtn = document.createElement('button')
+        deleteBtn.className = 'delete-history-item-btn'
+        deleteBtn.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10"></circle>
                     <line x1="15" y1="9" x2="9" y2="15"></line>
                     <line x1="9" y1="9" x2="15" y2="15"></line>
                 </svg>
-             `;
-             deleteBtn.setAttribute('aria-label', 'Delete item');
-             deleteBtn.onclick = (event) => {
-                event.stopPropagation();
-                deleteHistoryItem(item.timestamp);
-             };
-             card.appendChild(deleteBtn);
-
-             return card;
-         }
-
-        // --- UI State Management ---
-        function showScannerUI() {
-            manualEntryFormDiv.classList.add('hidden');
-            searchFoodFormContainer.classList.add('hidden'); // Hide search form
-            searchResultsArea.classList.add('hidden'); // Hide search results
-            resultsArea.classList.remove('hidden'); // Show main results area
-            readerElement.classList.remove('inactive');
-            statusMessage.textContent = 'Starting scanner...';
-            productInfoDiv.classList.add('hidden');
-            errorMessageSpan.textContent = '';
+             `
+        deleteBtn.setAttribute('aria-label', 'Delete item')
+        deleteBtn.onclick = (event) => {
+          event.stopPropagation()
+          deleteHistoryItem(item.timestamp)
         }
-        function showManualEntryUI() {
-            if (isScanning) stopScanning();
-            manualEntryFormDiv.classList.remove('hidden');
-            searchFoodFormContainer.classList.add('hidden'); // Hide search form
-            searchResultsArea.classList.add('hidden'); // Hide search results
-            resultsArea.classList.add('hidden'); // Hide main results area
-            readerElement.classList.add('inactive');
-            statusMessage.textContent = 'Enter product details manually.';
-            entryForm.reset();
-            manualEntryError.classList.add('hidden');
-            manualNameInput.focus();
+        card.appendChild(deleteBtn)
+
+        return card
+      }
+
+      // --- UI State Management ---
+      function showScannerUI() {
+        manualEntryFormDiv.classList.add('hidden')
+        searchFoodFormContainer.classList.add('hidden') // Hide search form
+        searchResultsArea.classList.add('hidden') // Hide search results
+        resultsArea.classList.remove('hidden') // Show main results area
+        readerElement.classList.remove('inactive')
+        statusMessage.textContent = 'Starting scanner...'
+        productInfoDiv.classList.add('hidden')
+        errorMessageSpan.textContent = ''
+      }
+      function showManualEntryUI() {
+        if (isScanning) stopScanning()
+        manualEntryFormDiv.classList.remove('hidden')
+        searchFoodFormContainer.classList.add('hidden') // Hide search form
+        searchResultsArea.classList.add('hidden') // Hide search results
+        resultsArea.classList.add('hidden') // Hide main results area
+        readerElement.classList.add('inactive')
+        statusMessage.textContent = 'Enter product details manually.'
+        entryForm.reset()
+        manualEntryError.classList.add('hidden')
+        manualNameInput.focus()
+      }
+      function showSearchUI() {
+        if (isScanning) stopScanning()
+        manualEntryFormDiv.classList.add('hidden')
+        readerElement.classList.add('inactive')
+        resultsArea.classList.add('hidden') // Hide main results area
+
+        searchFoodFormContainer.classList.remove('hidden')
+        searchResultsArea.classList.remove('hidden') // Show search results area
+
+        searchQueryInput.value = ''
+        searchErrorMessage.classList.add('hidden')
+        searchResultsList.innerHTML = '' // Clear previous results
+        noSearchResultsMessage.style.display = 'block' // Show placeholder
+        statusMessage.textContent = 'Enter a food name to search.'
+        searchQueryInput.focus()
+      }
+      function showIdleUI() {
+        manualEntryFormDiv.classList.add('hidden')
+        searchFoodFormContainer.classList.add('hidden') // Hide search form
+        searchResultsArea.classList.add('hidden') // Hide search results
+        resultsArea.classList.remove('hidden') // Show main results area
+        readerElement.classList.add('inactive')
+        statusMessage.textContent = 'Click "Scan Barcode" or "Manual Entry".'
+        productInfoDiv.classList.add('hidden')
+        errorMessageSpan.textContent = ''
+      }
+
+      /** Updates the main results display area (#product-info) */
+      function updateUICurrentResult(data) {
+        productNameSpan.textContent = data.productName
+        proteinGramsSpan.textContent = data.proteinGrams === 'N/A' ? 'N/A' : data.proteinGrams
+        energyKcalSpan.textContent = data.energyKcal === 'N/A' ? 'N/A' : data.energyKcal
+
+        proteinBar.style.width = `${data.proteinInfo.displayPercentage}%`
+        proteinBar.textContent = `${data.proteinInfo.actualPercentage}%`
+        proteinBar.className = 'percentage-bar-fill'
+        proteinBar.classList.add(data.proteinInfo.colorClass)
+        proteinLabel.textContent = data.proteinInfo.label
+
+        const unitText = data.isManual ? '/ serving' : '/ 100g'
+        unitLabels.forEach((label) => (label.textContent = unitText))
+
+        if (data.barcode) {
+          barcodeResultSpan.textContent = data.barcode
+          offLink.href = `https://world.openfoodfacts.org/product/${data.barcode}`
+          offLink.classList.remove('hidden')
+          barcodeRow.classList.remove('hidden')
+        } else {
+          barcodeResultSpan.textContent = ''
+          offLink.classList.add('hidden')
+          barcodeRow.classList.add('hidden')
         }
-        function showSearchUI() {
-            if (isScanning) stopScanning();
-            manualEntryFormDiv.classList.add('hidden');
-            readerElement.classList.add('inactive');
-            resultsArea.classList.add('hidden'); // Hide main results area
 
-            searchFoodFormContainer.classList.remove('hidden');
-            searchResultsArea.classList.remove('hidden'); // Show search results area
-
-            searchQueryInput.value = '';
-            searchErrorMessage.classList.add('hidden');
-            searchResultsList.innerHTML = ''; // Clear previous results
-            noSearchResultsMessage.style.display = 'block'; // Show placeholder
-            statusMessage.textContent = 'Enter a food name to search.';
-            searchQueryInput.focus();
-        }
-        function showIdleUI() {
-            manualEntryFormDiv.classList.add('hidden');
-            searchFoodFormContainer.classList.add('hidden'); // Hide search form
-            searchResultsArea.classList.add('hidden'); // Hide search results
-            resultsArea.classList.remove('hidden'); // Show main results area
-            readerElement.classList.add('inactive');
-            statusMessage.textContent = 'Click "Scan Barcode" or "Manual Entry".';
-            productInfoDiv.classList.add('hidden');
-            errorMessageSpan.textContent = '';
+        errorMessageSpan.textContent = data.calculationError || ''
+        statusMessage.textContent = data.calculationError
+          ? 'Product data processed, calculation incomplete.'
+          : 'Product data processed.'
+        if (data.sourceOperation === 'scan') {
+          statusMessage.textContent += ' Scan stopped.'
         }
 
-        /** Updates the main results display area (#product-info) */
-        function updateUICurrentResult(data) {
-            productNameSpan.textContent = data.productName;
-            proteinGramsSpan.textContent = data.proteinGrams === 'N/A' ? 'N/A' : data.proteinGrams;
-            energyKcalSpan.textContent = data.energyKcal === 'N/A' ? 'N/A' : data.energyKcal;
+        productInfoDiv.classList.remove('hidden')
+        resultsArea.classList.remove('hidden')
+      }
 
-            proteinBar.style.width = `${data.proteinInfo.displayPercentage}%`;
-            proteinBar.textContent = `${data.proteinInfo.actualPercentage}%`;
-            proteinBar.className = 'percentage-bar-fill';
-            proteinBar.classList.add(data.proteinInfo.colorClass);
-            proteinLabel.textContent = data.proteinInfo.label;
+      // --- Update UI Functions (Simplified) ---
+      function resetUI() {
+        showIdleUI()
+      }
 
-            const unitText = data.isManual ? '/ serving' : '/ 100g';
-            unitLabels.forEach(label => label.textContent = unitText);
+      function updateUIWithScannedData(barcode, product, sourceOperation) {
+        const nutriments = product.nutriments || {}
+        const productName = product.product_name || product.generic_name || 'N/A'
+        const protein100g = parseFloat(nutriments.proteins_100g)
+        const energyKcal100g = parseFloat(nutriments['energy-kcal_100g'])
 
-            if (data.barcode) {
-                barcodeResultSpan.textContent = data.barcode;
-                offLink.href = `https://world.openfoodfacts.org/product/${data.barcode}`;
-                offLink.classList.remove('hidden');
-                barcodeRow.classList.remove('hidden');
+        let percentage = NaN,
+          calculationError = null
+        if (!isNaN(protein100g) && !isNaN(energyKcal100g) && energyKcal100g > 0) {
+          percentage = ((protein100g * 4) / energyKcal100g) * 100
+        } else {
+          let missing = []
+          if (isNaN(protein100g)) missing.push('protein')
+          if (isNaN(energyKcal100g) || energyKcal100g <= 0) missing.push('calories')
+          calculationError = `Missing/invalid ${missing.join(' & ')}.`
+        }
+        const proteinInfo = getProteinInfo(percentage)
+
+        const displayData = {
+          productName: productName,
+          proteinInfo: proteinInfo,
+          proteinGrams: isNaN(protein100g) ? 'N/A' : protein100g.toFixed(1),
+          energyKcal: isNaN(energyKcal100g) ? 'N/A' : energyKcal100g.toFixed(0),
+          barcode: barcode,
+          calculationError: calculationError,
+          isManual: false,
+          sourceOperation: sourceOperation, // Add sourceOperation here
+        }
+
+        updateUICurrentResult(displayData)
+
+        if (!calculationError && proteinInfo.label !== 'N/A') {
+          const historyItem = {
+            barcode: displayData.barcode,
+            productName: displayData.productName,
+            proteinActualPercentage: proteinInfo.actualPercentage,
+            proteinDisplayPercentage: proteinInfo.displayPercentage,
+            proteinLabel: proteinInfo.label,
+            colorClass: proteinInfo.colorClass,
+            fadedColorClass: proteinInfo.fadedColorClass,
+            proteinGrams: displayData.proteinGrams,
+            energyKcal: displayData.energyKcal,
+            timestamp: new Date().toISOString(),
+            errorMessage: displayData.calculationError,
+            isManual: displayData.isManual,
+          }
+          addToHistory(historyItem)
+        } else {
+          console.log('Errored scanned entry not added to history:', displayData)
+        }
+        stopScanning()
+      }
+
+      function updateUIWithScanError(barcode, errorMsg) {
+        statusMessage.textContent = `Scan Error: ${errorMsg}. Trying again...`
+        lastScannedBarcode = null
+      }
+
+      // --- Scanning Callbacks ---
+      const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+        if (isScanning && decodedText && decodedText !== lastScannedBarcode) {
+          lastScannedBarcode = decodedText
+          statusMessage.textContent = `Barcode detected: ${decodedText}. Fetching data...`
+          errorMessageSpan.textContent = ''
+          fetchProductData(decodedText)
+        }
+      }
+      const qrCodeErrorCallback = (errorMessage) => {
+        /* console.warn(`Code scan error = ${errorMessage}`); */
+      }
+
+      // --- Start Scanning ---
+      function startScanning() {
+        if (isScanning) return
+        if (!html5QrCode) {
+          initializeScanner()
+        }
+        showScannerUI()
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+          rememberLastUsedCamera: true,
+        }
+        html5QrCode
+          .start({ facingMode: 'environment' }, config, qrCodeSuccessCallback, qrCodeErrorCallback)
+          .then(() => {
+            isScanning = true
+            lastScannedBarcode = null
+            scanBarcodeBtn.classList.add('hidden')
+            manualEntryBtn.classList.add('hidden')
+            stopScanBtn.classList.remove('hidden')
+            statusMessage.textContent = 'Scanning... Point camera at a barcode.'
+          })
+          .catch((err) => {
+            console.error(`Unable to start scanning: ${err}`)
+            statusMessage.textContent = `Error starting scanner: ${err}. Check permissions & HTTPS.`
+            isScanning = false
+            readerElement.classList.add('inactive')
+            scanBarcodeBtn.classList.remove('hidden')
+            manualEntryBtn.classList.remove('hidden')
+            stopScanBtn.classList.add('hidden')
+          })
+      }
+
+      // --- Stop Scanning ---
+      function stopScanning() {
+        isScanning = false
+        scanBarcodeBtn.classList.remove('hidden')
+        manualEntryBtn.classList.remove('hidden')
+        stopScanBtn.classList.add('hidden')
+        readerElement.classList.add('inactive')
+        if (
+          statusMessage.textContent.includes('Scanning...') ||
+          statusMessage.textContent.includes('Starting scanner...')
+        ) {
+          statusMessage.textContent = 'Scanner stopped.'
+        }
+        if (!html5QrCode || !html5QrCode.isScanning) {
+          return
+        }
+        html5QrCode
+          .stop()
+          .then(() => console.log('Scanner stopped via library.'))
+          .catch((err) => console.error(`Error stopping scanner via library: ${err}`))
+          .finally(() => {
+            readerElement.innerHTML = ''
+            lastScannedBarcode = null
+          })
+      }
+
+      // --- Fetch Data from Open Food Facts ---
+      async function fetchProductData(barcode, sourceOperation = 'scan') {
+        const wasScanningWhenFetchStarted = isScanning
+        const apiUrl = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,generic_name,nutriments`
+        try {
+          const response = await fetch(apiUrl)
+          if (!isScanning && wasScanningWhenFetchStarted && sourceOperation === 'scan') {
+            console.log('Scan stopped during fetch.')
+            return
+          }
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+          }
+          const data = await response.json()
+          if (!isScanning && wasScanningWhenFetchStarted && sourceOperation === 'scan') {
+            console.log('Scan stopped during parse.')
+            return
+          }
+          if (data.status === 1 && data.product) {
+            updateUIWithScannedData(barcode, data.product, sourceOperation)
+          } else {
+            throw new Error(data.status_verbose || 'Product not found')
+          }
+        } catch (error) {
+          console.error('Error fetching/processing product data:', error)
+          if (!isScanning && wasScanningWhenFetchStarted && sourceOperation === 'scan') {
+            console.log('Scan stopped during error handling.')
+            return
+          }
+          // For non-scan operations (like search result click), we want to show the error on the main product page
+          if (sourceOperation !== 'scan') {
+            productNameSpan.textContent = ''
+            proteinGramsSpan.textContent = 'N/A'
+            energyKcalSpan.textContent = 'N/A'
+            proteinBar.style.width = `0%`
+            proteinBar.textContent = `0%`
+            proteinBar.className = 'percentage-bar-fill bg-gray-400'
+            proteinLabel.textContent = 'Error'
+            barcodeResultSpan.textContent = barcode
+            offLink.href = `https://world.openfoodfacts.org/product/${barcode}`
+            offLink.classList.remove('hidden')
+            barcodeRow.classList.remove('hidden') // Show barcode row even on error for context
+            errorMessageSpan.textContent = `Failed to fetch product data: ${error.message}. Please try again.`
+            statusMessage.textContent = 'Error fetching product details.'
+            productInfoDiv.classList.remove('hidden')
+            resultsArea.classList.remove('hidden') // Ensure this is visible
+          } else {
+            // Original behavior for scan errors
+            updateUIWithScanError(barcode, error.message)
+          }
+        }
+      }
+
+      // --- Manual Entry Form Handling ---
+      function handleManualEntrySubmit(event) {
+        event.preventDefault()
+        manualEntryError.classList.add('hidden')
+        const name = manualNameInput.value.trim()
+        const calories = parseFloat(manualCaloriesInput.value)
+        const protein = parseFloat(manualProteinInput.value)
+
+        if (isNaN(calories) || calories <= 0 || isNaN(protein) || protein < 0) {
+          manualEntryError.textContent =
+            'Please enter valid positive numbers for calories and protein (protein can be 0).'
+          manualEntryError.classList.remove('hidden')
+          return
+        }
+
+        const caloriesFromProtein = protein * 4
+        const percentage = (caloriesFromProtein / calories) * 100
+        const proteinInfo = getProteinInfo(percentage)
+
+        const displayData = {
+          productName: name || 'Manual Entry',
+          proteinInfo: proteinInfo,
+          proteinGrams: protein.toFixed(1),
+          energyKcal: calories.toFixed(0),
+          barcode: null,
+          calculationError: null,
+          isManual: true,
+        }
+
+        updateUICurrentResult(displayData)
+
+        if (proteinInfo.label !== 'N/A') {
+          const historyItem = {
+            barcode: displayData.barcode,
+            productName: displayData.productName,
+            proteinActualPercentage: proteinInfo.actualPercentage,
+            proteinDisplayPercentage: proteinInfo.displayPercentage,
+            proteinLabel: proteinInfo.label,
+            colorClass: proteinInfo.colorClass,
+            fadedColorClass: proteinInfo.fadedColorClass,
+            proteinGrams: displayData.proteinGrams,
+            energyKcal: displayData.energyKcal,
+            timestamp: new Date().toISOString(),
+            errorMessage: displayData.calculationError,
+            isManual: displayData.isManual,
+          }
+          addToHistory(historyItem)
+        } else {
+          console.log('Errored manual entry (label N/A) not added to history:', displayData)
+        }
+        manualEntryFormDiv.classList.add('hidden')
+        resultsArea.classList.remove('hidden')
+      }
+
+      // --- PWA Service Worker Registration ---
+      function registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker
+              .register('./service-worker.js')
+              .then((registration) =>
+                console.log(
+                  'ServiceWorker registration successful with scope: ',
+                  registration.scope
+                )
+              )
+              .catch((error) => console.log('ServiceWorker registration failed: ', error))
+          })
+        } else {
+          console.log('Service workers are not supported.')
+        }
+      }
+
+      // --- PWA Install Button Logic ---
+      function setupInstallButton() {
+        window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault()
+          deferredPrompt = e
+          installPwaBtn.classList.remove('hidden')
+          console.log('`beforeinstallprompt` event was fired.')
+        })
+        installPwaBtn.addEventListener('click', async () => {
+          installPwaBtn.classList.add('hidden')
+          if (!deferredPrompt) {
+            console.log('Install prompt event not available.')
+            return
+          }
+          deferredPrompt.prompt()
+          const { outcome } = await deferredPrompt.userChoice
+          console.log(`User response to the install prompt: ${outcome}`)
+          deferredPrompt = null
+        })
+        window.addEventListener('appinstalled', () => {
+          installPwaBtn.classList.add('hidden')
+          deferredPrompt = null
+          console.log('PWA was installed')
+        })
+      }
+
+      // --- Event Listeners ---
+      scanBarcodeBtn.addEventListener('click', startScanning)
+      stopScanBtn.addEventListener('click', stopScanning)
+      manualEntryBtn.addEventListener('click', showManualEntryUI)
+      searchFoodBtn.addEventListener('click', showSearchUI) // New listener
+      cancelManualEntryBtn.addEventListener('click', showIdleUI)
+      cancelSearchBtn.addEventListener('click', showIdleUI) // New listener for search cancel
+      entryForm.addEventListener('submit', handleManualEntrySubmit)
+      // searchForm.addEventListener('submit', handleSearchSubmit); // Placeholder for search submission
+      clearAllBtn.addEventListener('click', clearAllHistory)
+      manageHistoryBtn.addEventListener('click', toggleDeleteMode)
+      compareModeBtn.addEventListener('click', toggleComparisonMode) // Added event listener
+      closeComparisonModalBtn.addEventListener('click', () =>
+        comparisonModal.classList.add('hidden')
+      )
+
+      generateComparisonImageBtn.onclick = () => {
+        if (selectedForComparison.length >= 2) {
+          generateComparisonImage(selectedForComparison)
+        } else {
+          alert('Please select at least two items to compare.')
+        }
+      }
+
+      // --- Comparison Image Generation ---
+      // async function fetchMinimalProductDataForComparison(barcode) { /* ... */ } // REMOVED
+
+      async function generateComparisonImage(itemsToCompare) {
+        // Show modal and initial message immediately
+        comparisonCanvasContainer.innerHTML =
+          '<p class="text-center p-4">Generating image, please wait...</p>'
+        comparisonModal.classList.remove('hidden')
+        downloadComparisonBtn.disabled = true // Disable download button until canvas is ready
+
+        try {
+          const scaleFactor = 2 // For 2x resolution
+
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          const numItems = itemsToCompare.length
+
+          // New base dimensions for vertical layout
+          const baseRowHeight = 60 // Height for each item's row
+          const basePaddingVertical = 15 // Vertical padding between rows and at top/bottom
+          const basePaddingHorizontal = 20 // Horizontal padding at left/right of canvas
+          const baseProductNameLeftMargin = 10 // Margin for product name from the left edge of its "column"
+          const baseProductNameMaxWidth = 250 // Max width for product name text before wrapping/truncating
+          const baseBarStartX = baseProductNameLeftMargin + baseProductNameMaxWidth + 30 // X-pos where protein bars start
+          const baseBarHeight = 25 // Height of the protein bar itself
+          const baseBarMaxLength = 300 // Max length of a 100% protein bar
+          const basePercentageTextWidth = 100 // Estimated width needed for "XX.X% Label" text next to bar
+
+          // Calculate required canvas width based on new layout
+          const baseCanvasWidth =
+            baseBarStartX +
+            baseBarMaxLength +
+            basePercentageTextWidth +
+            basePaddingHorizontal +
+            baseProductNameLeftMargin // Added baseProductNameLeftMargin for overall width calculation
+
+          // Scaled dimensions for canvas
+          canvas.width = baseCanvasWidth * scaleFactor
+          canvas.height =
+            (numItems * baseRowHeight + (numItems + 1) * basePaddingVertical) * scaleFactor
+
+          ctx.fillStyle = '#f7f7f7' // Softer off-white background
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+          // Apply scaleFactor to all base dimensions for drawing
+          const rowHeight = baseRowHeight * scaleFactor
+          const paddingVertical = basePaddingVertical * scaleFactor
+          const paddingHorizontal = basePaddingHorizontal * scaleFactor
+          const productNameLeftMargin = baseProductNameLeftMargin * scaleFactor
+          const productNameMaxWidth = baseProductNameMaxWidth * scaleFactor
+          const barStartX = baseBarStartX * scaleFactor
+          const barHeight = baseBarHeight * scaleFactor
+          const barMaxLength = baseBarMaxLength * scaleFactor
+
+          const colorMap = {
+            'bg-red-500': '#ef4444',
+            'bg-yellow-500': '#eab308',
+            'bg-blue-500': '#3b82f6',
+            'bg-green-500': '#22c55e',
+            'bg-purple-600': '#9333ea',
+            'bg-gray-500': '#6b7280', // Used for "Zero"
+            'bg-gray-700': '#374151', // Used for "Unreal"
+            'bg-gray-400': '#9ca3af', // Used as default by getProteinInfo for N/A or <0 percentage
+          }
+
+          let currentY = paddingVertical // Start Y for the first item
+
+          for (let i = 0; i < numItems; i++) {
+            const item = itemsToCompare[i]
+            const itemRowStartY = currentY
+
+            // Product Name
+            ctx.fillStyle = '#333333'
+            ctx.font = `bold ${15 * scaleFactor}px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif`
+            ctx.textAlign = 'left'
+            ctx.textBaseline = 'top'
+
+            const productName = item.productName || (item.isManual ? 'Manual Entry' : 'N/A')
+            let displayName = productName
+            let nameMetrics = ctx.measureText(displayName)
+            while (nameMetrics.width > productNameMaxWidth && displayName.length > 10) {
+              displayName = displayName.substring(0, displayName.length - 4) + '...'
+              nameMetrics = ctx.measureText(displayName)
+            }
+            const productNameY = itemRowStartY + 5 * scaleFactor // Position text 5px (base) from top of row area
+            ctx.fillText(displayName, paddingHorizontal + productNameLeftMargin, productNameY)
+
+            // Protein Percentage Bar
+            const proteinInfo = getProteinInfo(parseFloat(item.proteinActualPercentage))
+
+            // Commented out bar background track for a cleaner look
+            // ctx.fillStyle = '#e0e0e0';
+            // ctx.fillRect(barStartX, itemRowStartY + (rowHeight - barHeight) / 2, barMaxLength, barHeight);
+
+            const barFillWidth =
+              ((parseFloat(item.proteinDisplayPercentage) || 0) / 100) * barMaxLength
+            const barActualY = itemRowStartY + (rowHeight - barHeight) / 2
+            const barFillColor = colorMap[proteinInfo.colorClass] || '#6b7280'
+            const barCornerRadius = Math.min(5 * scaleFactor, barHeight / 2)
+
+            const effectiveBarFillWidth = Math.max(0, barFillWidth)
+            const effectiveBarHeight = Math.max(0, barHeight)
+
+            if (effectiveBarFillWidth > 0 && effectiveBarHeight > 0) {
+              drawRoundedRect(
+                ctx,
+                barStartX,
+                barActualY,
+                effectiveBarFillWidth,
+                effectiveBarHeight,
+                barCornerRadius,
+                barFillColor
+              )
+            }
+
+            // Percentage Text (next to bar)
+            const percentageText = `${item.proteinActualPercentage}% ${proteinInfo.label}`
+            ctx.fillStyle = '#333333'
+            ctx.font = `normal ${12 * scaleFactor}px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif`
+            ctx.textAlign = 'left'
+            ctx.textBaseline = 'middle'
+            ctx.fillText(
+              percentageText,
+              barStartX + barMaxLength + 15 * scaleFactor,
+              itemRowStartY + rowHeight / 2
+            )
+
+            // Row Separator
+            if (i < numItems - 1) {
+              ctx.beginPath()
+              ctx.strokeStyle = '#dddddd'
+              ctx.lineWidth = 1 * scaleFactor
+              const lineY = itemRowStartY + rowHeight + paddingVertical / 2
+              ctx.moveTo(paddingHorizontal, lineY)
+              ctx.lineTo(canvas.width - paddingHorizontal, lineY)
+              ctx.stroke()
+            }
+
+            currentY += rowHeight + paddingVertical
+          }
+
+          comparisonCanvasContainer.innerHTML = ''
+          comparisonCanvasContainer.appendChild(canvas)
+          downloadComparisonBtn.disabled = false
+
+          downloadComparisonBtn.onclick = () => {
+            if (canvas) {
+              const dataURL = canvas.toDataURL('image/png')
+              const link = document.createElement('a')
+              link.href = dataURL
+              link.download = 'food_comparison.png'
+              document.body.appendChild(link)
+              link.click()
+              document.body.removeChild(link)
             } else {
-                barcodeResultSpan.textContent = '';
-                offLink.classList.add('hidden');
-                barcodeRow.classList.add('hidden');
+              console.error('Canvas element not found for download.')
+              alert('Error: Could not find the image to download.')
             }
+          }
+        } catch (error) {
+          console.error('Error generating comparison image:', error)
+          comparisonCanvasContainer.innerHTML = `<p class="text-center text-red-500 p-4">Error generating image: ${error.message}. Please try again.</p>`
+          downloadComparisonBtn.disabled = true
+        }
+      }
 
-            errorMessageSpan.textContent = data.calculationError || '';
-            statusMessage.textContent = data.calculationError ? 'Product data processed, calculation incomplete.' : 'Product data processed.';
-            if (data.sourceOperation === 'scan') { statusMessage.textContent += ' Scan stopped.'; }
+      // function drawPlaceholderImage(ctx, x, y, size) { /* ... */ } // REMOVED
 
-            productInfoDiv.classList.remove('hidden');
-            resultsArea.classList.remove('hidden');
+      function drawRoundedRect(ctx, x, y, width, height, radius, color) {
+        if (width < 2 * radius) radius = width / 2
+        if (height < 2 * radius) radius = height / 2
+        if (radius < 0) radius = 0
+        if (width <= 0 || height <= 0) return
+
+        ctx.beginPath()
+        ctx.moveTo(x + radius, y)
+        ctx.arcTo(x + width, y, x + width, y + height, radius)
+        ctx.arcTo(x + width, y + height, x, y + height, radius)
+        ctx.arcTo(x, y + height, x, y, radius)
+        ctx.arcTo(x, y, x + width, y, radius)
+        ctx.closePath()
+        ctx.fillStyle = color
+        ctx.fill()
+      }
+
+      // --- Search Functionality ---
+      async function fetchSearchResults(query) {
+        statusMessage.textContent = 'Searching...' // General status
+        searchErrorMessage.classList.add('hidden')
+        searchResultsList.innerHTML = '' // Clear previous results
+        noSearchResultsMessage.style.display = 'none' // Hide placeholder/error messages
+        searchSpinner.classList.remove('hidden') // Show spinner
+        performSearchBtn.disabled = true
+        cancelSearchBtn.disabled = true
+
+        const apiUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=20`
+
+        try {
+          const response = await fetch(apiUrl)
+          if (!response.ok) {
+            throw new Error(`Network response was not ok: ${response.statusText}`)
+          }
+          const data = await response.json()
+
+          if (data.products && data.products.length > 0) {
+            displaySearchResults(data.products, query)
+            statusMessage.textContent = `Search complete. Displaying ${data.products.length} results for "${query}".`
+          } else {
+            searchResultsList.innerHTML = ''
+            noSearchResultsMessage.textContent = `No products found for "${query}". Try different keywords.`
+            noSearchResultsMessage.style.display = 'block'
+            searchErrorMessage.classList.add('hidden') // No technical error, just no results
+            statusMessage.textContent = `No results for "${query}".`
+          }
+        } catch (error) {
+          console.error('Fetch search error:', error)
+          searchErrorMessage.textContent = `Search failed: ${error.message}. Check connection or try again.`
+          searchErrorMessage.classList.remove('hidden')
+          noSearchResultsMessage.textContent = 'Search error occurred.' // This will be shown after spinner hides
+          noSearchResultsMessage.style.display = 'block'
+          searchResultsList.innerHTML = ''
+          statusMessage.textContent = 'Search error.'
+        } finally {
+          searchSpinner.classList.add('hidden') // Hide spinner
+          performSearchBtn.disabled = false
+          cancelSearchBtn.disabled = false
+        }
+      }
+
+      function displaySearchResults(products, query) {
+        searchResultsList.innerHTML = '' // Clear previous results or "Searching..." message
+
+        if (!products || products.length === 0) {
+          noSearchResultsMessage.textContent = `No products found for "${query}".`
+          noSearchResultsMessage.style.display = 'block'
+          return
         }
 
-        // --- Update UI Functions (Simplified) ---
-        function resetUI() { showIdleUI(); }
+        noSearchResultsMessage.style.display = 'none' // Hide "Searching..." or "No products found"
 
-        function updateUIWithScannedData(barcode, product, sourceOperation) {
-            const nutriments = product.nutriments || {};
-            const productName = product.product_name || product.generic_name || 'N/A';
-            const protein100g = parseFloat(nutriments.proteins_100g);
-            const energyKcal100g = parseFloat(nutriments['energy-kcal_100g']);
+        products.forEach((product) => {
+          const item = document.createElement('div')
+          item.classList.add(
+            'p-3',
+            'mb-2',
+            'border',
+            'rounded-md',
+            'hover:bg-gray-200',
+            'cursor-pointer',
+            'transition',
+            'duration-150',
+            'ease-in-out'
+          )
+          item.setAttribute('data-barcode', product.code) // Barcode is in 'code' field
 
-            let percentage = NaN, calculationError = null;
-            if (!isNaN(protein100g) && !isNaN(energyKcal100g) && energyKcal100g > 0) {
-                percentage = (protein100g * 4 / energyKcal100g) * 100;
-            } else {
-                 let missing = [];
-                 if (isNaN(protein100g)) missing.push("protein");
-                 if (isNaN(energyKcal100g) || energyKcal100g <= 0) missing.push("calories");
-                 calculationError = `Missing/invalid ${missing.join(' & ')}.`;
-            }
-            const proteinInfo = getProteinInfo(percentage);
+          let productName = product.product_name_en || product.product_name || 'Unknown Product'
+          let brandName = product.brands || ''
 
-            const displayData = {
-                 productName: productName,
-                 proteinInfo: proteinInfo,
-                 proteinGrams: isNaN(protein100g) ? 'N/A' : protein100g.toFixed(1),
-                 energyKcal: isNaN(energyKcal100g) ? 'N/A' : energyKcal100g.toFixed(0),
-                 barcode: barcode,
-                 calculationError: calculationError,
-                 isManual: false,
-                 sourceOperation: sourceOperation // Add sourceOperation here
-            };
-
-            updateUICurrentResult(displayData);
-
-            if (!calculationError && proteinInfo.label !== 'N/A') {
-                 const historyItem = {
-                     barcode: displayData.barcode, productName: displayData.productName,
-                     proteinActualPercentage: proteinInfo.actualPercentage, proteinDisplayPercentage: proteinInfo.displayPercentage,
-                     proteinLabel: proteinInfo.label, colorClass: proteinInfo.colorClass,
-                     fadedColorClass: proteinInfo.fadedColorClass,
-                     proteinGrams: displayData.proteinGrams, energyKcal: displayData.energyKcal,
-                     timestamp: new Date().toISOString(), errorMessage: displayData.calculationError,
-                     isManual: displayData.isManual
-                };
-                 addToHistory(historyItem);
-            } else {
-                console.log("Errored scanned entry not added to history:", displayData);
-            }
-             stopScanning();
-        }
-
-        function updateUIWithScanError(barcode, errorMsg) {
-             statusMessage.textContent = `Scan Error: ${errorMsg}. Trying again...`;
-             lastScannedBarcode = null;
-        }
-
-
-        // --- Scanning Callbacks ---
-        const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-            if (isScanning && decodedText && decodedText !== lastScannedBarcode) {
-                lastScannedBarcode = decodedText;
-                statusMessage.textContent = `Barcode detected: ${decodedText}. Fetching data...`;
-                errorMessageSpan.textContent = '';
-                fetchProductData(decodedText);
-            }
-        };
-        const qrCodeErrorCallback = (errorMessage) => { /* console.warn(`Code scan error = ${errorMessage}`); */ };
-
-        // --- Start Scanning ---
-        function startScanning() {
-            if (isScanning) return;
-            if (!html5QrCode) { initializeScanner(); }
-            showScannerUI();
-            const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0, rememberLastUsedCamera: true };
-            html5QrCode.start( { facingMode: "environment" }, config, qrCodeSuccessCallback, qrCodeErrorCallback)
-            .then(() => {
-                isScanning = true; lastScannedBarcode = null;
-                scanBarcodeBtn.classList.add('hidden'); manualEntryBtn.classList.add('hidden');
-                stopScanBtn.classList.remove('hidden');
-                statusMessage.textContent = 'Scanning... Point camera at a barcode.';
-            }).catch(err => {
-                console.error(`Unable to start scanning: ${err}`);
-                statusMessage.textContent = `Error starting scanner: ${err}. Check permissions & HTTPS.`;
-                isScanning = false; readerElement.classList.add('inactive');
-                scanBarcodeBtn.classList.remove('hidden'); manualEntryBtn.classList.remove('hidden');
-                stopScanBtn.classList.add('hidden');
-            });
-        }
-
-        // --- Stop Scanning ---
-        function stopScanning() {
-            isScanning = false;
-            scanBarcodeBtn.classList.remove('hidden'); manualEntryBtn.classList.remove('hidden');
-            stopScanBtn.classList.add('hidden'); readerElement.classList.add('inactive');
-            if (statusMessage.textContent.includes('Scanning...') || statusMessage.textContent.includes('Starting scanner...')) {
-                 statusMessage.textContent = 'Scanner stopped.';
-            }
-            if (!html5QrCode || !html5QrCode.isScanning) { return; }
-            html5QrCode.stop().then(() => console.log("Scanner stopped via library."))
-            .catch(err => console.error(`Error stopping scanner via library: ${err}`))
-            .finally(() => { readerElement.innerHTML = ''; lastScannedBarcode = null; });
-        }
-
-        // --- Fetch Data from Open Food Facts ---
-        async function fetchProductData(barcode, sourceOperation = 'scan') {
-            const wasScanningWhenFetchStarted = isScanning;
-            const apiUrl = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,generic_name,nutriments`;
-            try {
-                const response = await fetch(apiUrl);
-                 if (!isScanning && wasScanningWhenFetchStarted && sourceOperation === 'scan') { console.log("Scan stopped during fetch."); return; };
-                if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
-                const data = await response.json();
-                 if (!isScanning && wasScanningWhenFetchStarted && sourceOperation === 'scan') { console.log("Scan stopped during parse."); return; };
-                if (data.status === 1 && data.product) {
-                    updateUIWithScannedData(barcode, data.product, sourceOperation);
-                } else {
-                    throw new Error(data.status_verbose || 'Product not found');
-                }
-            } catch (error) {
-                console.error("Error fetching/processing product data:", error);
-                 if (!isScanning && wasScanningWhenFetchStarted && sourceOperation === 'scan') { console.log("Scan stopped during error handling."); return; };
-                // For non-scan operations (like search result click), we want to show the error on the main product page
-                if (sourceOperation !== 'scan') {
-                    productNameSpan.textContent = '';
-                    proteinGramsSpan.textContent = 'N/A';
-                    energyKcalSpan.textContent = 'N/A';
-                    proteinBar.style.width = `0%`;
-                    proteinBar.textContent = `0%`;
-                    proteinBar.className = 'percentage-bar-fill bg-gray-400';
-                    proteinLabel.textContent = 'Error';
-                    barcodeResultSpan.textContent = barcode;
-                    offLink.href = `https://world.openfoodfacts.org/product/${barcode}`;
-                    offLink.classList.remove('hidden');
-                    barcodeRow.classList.remove('hidden'); // Show barcode row even on error for context
-                    errorMessageSpan.textContent = `Failed to fetch product data: ${error.message}. Please try again.`;
-                    statusMessage.textContent = 'Error fetching product details.';
-                    productInfoDiv.classList.remove('hidden');
-                    resultsArea.classList.remove('hidden'); // Ensure this is visible
-                } else { // Original behavior for scan errors
-                    updateUIWithScanError(barcode, error.message);
-                }
-            }
-        }
-
-        // --- Manual Entry Form Handling ---
-        function handleManualEntrySubmit(event) {
-            event.preventDefault();
-            manualEntryError.classList.add('hidden');
-            const name = manualNameInput.value.trim();
-            const calories = parseFloat(manualCaloriesInput.value);
-            const protein = parseFloat(manualProteinInput.value);
-
-            if (isNaN(calories) || calories <= 0 || isNaN(protein) || protein < 0) {
-                manualEntryError.textContent = 'Please enter valid positive numbers for calories and protein (protein can be 0).';
-                manualEntryError.classList.remove('hidden'); return;
-            }
-
-            const caloriesFromProtein = protein * 4;
-            const percentage = (caloriesFromProtein / calories) * 100;
-            const proteinInfo = getProteinInfo(percentage);
-
-            const displayData = {
-                 productName: name || 'Manual Entry',
-                 proteinInfo: proteinInfo,
-                 proteinGrams: protein.toFixed(1),
-                 energyKcal: calories.toFixed(0),
-                 barcode: null,
-                 calculationError: null,
-                 isManual: true
-            };
-
-            updateUICurrentResult(displayData);
-
-            if (proteinInfo.label !== 'N/A') {
-                 const historyItem = {
-                     barcode: displayData.barcode, productName: displayData.productName,
-                     proteinActualPercentage: proteinInfo.actualPercentage, proteinDisplayPercentage: proteinInfo.displayPercentage,
-                     proteinLabel: proteinInfo.label, colorClass: proteinInfo.colorClass,
-                     fadedColorClass: proteinInfo.fadedColorClass,
-                     proteinGrams: displayData.proteinGrams, energyKcal: displayData.energyKcal,
-                     timestamp: new Date().toISOString(), errorMessage: displayData.calculationError,
-                     isManual: displayData.isManual
-                };
-                 addToHistory(historyItem);
-            } else {
-                console.log("Errored manual entry (label N/A) not added to history:", displayData);
-            }
-             manualEntryFormDiv.classList.add('hidden');
-             resultsArea.classList.remove('hidden');
-        }
-
-        // --- PWA Service Worker Registration ---
-        function registerServiceWorker() {
-          if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-              navigator.serviceWorker.register('./service-worker.js')
-                .then(registration => console.log('ServiceWorker registration successful with scope: ', registration.scope))
-                .catch(error => console.log('ServiceWorker registration failed: ', error));
-            });
-          } else { console.log('Service workers are not supported.'); }
-        }
-
-        // --- PWA Install Button Logic ---
-        function setupInstallButton() {
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                deferredPrompt = e;
-                installPwaBtn.classList.remove('hidden');
-                console.log('`beforeinstallprompt` event was fired.');
-            });
-            installPwaBtn.addEventListener('click', async () => {
-                installPwaBtn.classList.add('hidden');
-                if (!deferredPrompt) { console.log("Install prompt event not available."); return; }
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response to the install prompt: ${outcome}`);
-                deferredPrompt = null;
-            });
-            window.addEventListener('appinstalled', () => {
-                installPwaBtn.classList.add('hidden');
-                deferredPrompt = null;
-                console.log('PWA was installed');
-            });
-        }
-
-        // --- Event Listeners ---
-        scanBarcodeBtn.addEventListener('click', startScanning);
-        stopScanBtn.addEventListener('click', stopScanning);
-        manualEntryBtn.addEventListener('click', showManualEntryUI);
-        searchFoodBtn.addEventListener('click', showSearchUI); // New listener
-        cancelManualEntryBtn.addEventListener('click', showIdleUI);
-        cancelSearchBtn.addEventListener('click', showIdleUI); // New listener for search cancel
-        entryForm.addEventListener('submit', handleManualEntrySubmit);
-        // searchForm.addEventListener('submit', handleSearchSubmit); // Placeholder for search submission
-        clearAllBtn.addEventListener('click', clearAllHistory);
-        manageHistoryBtn.addEventListener('click', toggleDeleteMode);
-        compareModeBtn.addEventListener('click', toggleComparisonMode); // Added event listener
-        closeComparisonModalBtn.addEventListener('click', () => comparisonModal.classList.add('hidden'));
-
-        generateComparisonImageBtn.onclick = () => {
-            if (selectedForComparison.length >= 2) {
-                generateComparisonImage(selectedForComparison);
-            } else {
-                alert("Please select at least two items to compare.");
-            }
-        };
-
-        // --- Comparison Image Generation ---
-        // async function fetchMinimalProductDataForComparison(barcode) { /* ... */ } // REMOVED
-
-        async function generateComparisonImage(itemsToCompare) {
-            // Show modal and initial message immediately
-            comparisonCanvasContainer.innerHTML = '<p class="text-center p-4">Generating image, please wait...</p>';
-            comparisonModal.classList.remove('hidden');
-            downloadComparisonBtn.disabled = true; // Disable download button until canvas is ready
-
-            try {
-                const scaleFactor = 2; // For 2x resolution
-
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                const numItems = itemsToCompare.length;
-
-                // New base dimensions for vertical layout
-                const baseRowHeight = 60;         // Height for each item's row
-                const basePaddingVertical = 15;   // Vertical padding between rows and at top/bottom
-                const basePaddingHorizontal = 20; // Horizontal padding at left/right of canvas
-                const baseProductNameLeftMargin = 10; // Margin for product name from the left edge of its "column"
-                const baseProductNameMaxWidth = 250;  // Max width for product name text before wrapping/truncating
-                const baseBarStartX = baseProductNameLeftMargin + baseProductNameMaxWidth + 30; // X-pos where protein bars start
-                const baseBarHeight = 25;          // Height of the protein bar itself
-                const baseBarMaxLength = 300;     // Max length of a 100% protein bar
-                const basePercentageTextWidth = 100; // Estimated width needed for "XX.X% Label" text next to bar
-
-                // Calculate required canvas width based on new layout
-                const baseCanvasWidth = baseBarStartX + baseBarMaxLength + basePercentageTextWidth + basePaddingHorizontal + baseProductNameLeftMargin; // Added baseProductNameLeftMargin for overall width calculation
-
-                // Scaled dimensions for canvas
-                canvas.width = baseCanvasWidth * scaleFactor;
-                canvas.height = (numItems * baseRowHeight + (numItems + 1) * basePaddingVertical) * scaleFactor;
-
-                ctx.fillStyle = '#f7f7f7'; // Softer off-white background
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // Apply scaleFactor to all base dimensions for drawing
-                const rowHeight = baseRowHeight * scaleFactor;
-                const paddingVertical = basePaddingVertical * scaleFactor;
-                const paddingHorizontal = basePaddingHorizontal * scaleFactor;
-                const productNameLeftMargin = baseProductNameLeftMargin * scaleFactor;
-                const productNameMaxWidth = baseProductNameMaxWidth * scaleFactor;
-                const barStartX = baseBarStartX * scaleFactor;
-                const barHeight = baseBarHeight * scaleFactor;
-                const barMaxLength = baseBarMaxLength * scaleFactor;
-
-                const colorMap = {
-                    'bg-red-500': '#ef4444',
-                    'bg-yellow-500': '#eab308',
-                    'bg-blue-500': '#3b82f6',
-                    'bg-green-500': '#22c55e',
-                    'bg-purple-600': '#9333ea',
-                    'bg-gray-500': '#6b7280', // Used for "Zero"
-                    'bg-gray-700': '#374151', // Used for "Unreal"
-                    'bg-gray-400': '#9ca3af'  // Used as default by getProteinInfo for N/A or <0 percentage
-                };
-
-                let currentY = paddingVertical; // Start Y for the first item
-
-                for (let i = 0; i < numItems; i++) {
-                    const item = itemsToCompare[i];
-                    const itemRowStartY = currentY;
-
-                    // Product Name
-                    ctx.fillStyle = '#333333';
-                    ctx.font = `bold ${15 * scaleFactor}px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif`;
-                    ctx.textAlign = 'left';
-                    ctx.textBaseline = 'top';
-
-                    const productName = item.productName || (item.isManual ? 'Manual Entry' : 'N/A');
-                    let displayName = productName;
-                    let nameMetrics = ctx.measureText(displayName);
-                    while (nameMetrics.width > productNameMaxWidth && displayName.length > 10) {
-                        displayName = displayName.substring(0, displayName.length - 4) + "...";
-                        nameMetrics = ctx.measureText(displayName);
-                    }
-                    const productNameY = itemRowStartY + (5 * scaleFactor); // Position text 5px (base) from top of row area
-                    ctx.fillText(displayName, paddingHorizontal + productNameLeftMargin, productNameY);
-
-                    // Protein Percentage Bar
-                    const proteinInfo = getProteinInfo(parseFloat(item.proteinActualPercentage));
-
-                    // Commented out bar background track for a cleaner look
-                    // ctx.fillStyle = '#e0e0e0';
-                    // ctx.fillRect(barStartX, itemRowStartY + (rowHeight - barHeight) / 2, barMaxLength, barHeight);
-
-                    const barFillWidth = ((parseFloat(item.proteinDisplayPercentage) || 0) / 100) * barMaxLength;
-                    const barActualY = itemRowStartY + (rowHeight - barHeight) / 2;
-                    const barFillColor = colorMap[proteinInfo.colorClass] || '#6b7280';
-                    const barCornerRadius = Math.min(5 * scaleFactor, barHeight / 2);
-
-                    const effectiveBarFillWidth = Math.max(0, barFillWidth);
-                    const effectiveBarHeight = Math.max(0, barHeight);
-
-                    if (effectiveBarFillWidth > 0 && effectiveBarHeight > 0) {
-                        drawRoundedRect(ctx, barStartX, barActualY, effectiveBarFillWidth, effectiveBarHeight, barCornerRadius, barFillColor);
-                    }
-
-                    // Percentage Text (next to bar)
-                    const percentageText = `${item.proteinActualPercentage}% ${proteinInfo.label}`;
-                    ctx.fillStyle = '#333333';
-                    ctx.font = `normal ${12 * scaleFactor}px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif`;
-                    ctx.textAlign = 'left';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(percentageText, barStartX + barMaxLength + (15 * scaleFactor), itemRowStartY + rowHeight / 2);
-
-                    // Row Separator
-                    if (i < numItems - 1) {
-                        ctx.beginPath();
-                        ctx.strokeStyle = '#dddddd';
-                        ctx.lineWidth = (1 * scaleFactor);
-                        const lineY = itemRowStartY + rowHeight + (paddingVertical / 2);
-                        ctx.moveTo(paddingHorizontal, lineY);
-                        ctx.lineTo(canvas.width - paddingHorizontal, lineY);
-                        ctx.stroke();
-                    }
-
-                    currentY += rowHeight + paddingVertical;
-                }
-
-                comparisonCanvasContainer.innerHTML = '';
-                comparisonCanvasContainer.appendChild(canvas);
-                downloadComparisonBtn.disabled = false;
-
-                downloadComparisonBtn.onclick = () => {
-                    if (canvas) {
-                        const dataURL = canvas.toDataURL('image/png');
-                        const link = document.createElement('a');
-                        link.href = dataURL;
-                        link.download = 'food_comparison.png';
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                    } else {
-                        console.error("Canvas element not found for download.");
-                        alert("Error: Could not find the image to download.");
-                    }
-                };
-
-            } catch (error) {
-                console.error("Error generating comparison image:", error);
-                comparisonCanvasContainer.innerHTML = `<p class="text-center text-red-500 p-4">Error generating image: ${error.message}. Please try again.</p>`;
-                downloadComparisonBtn.disabled = true;
-            }
-        }
-
-        // function drawPlaceholderImage(ctx, x, y, size) { /* ... */ } // REMOVED
-
-        function drawRoundedRect(ctx, x, y, width, height, radius, color) {
-            if (width < 2 * radius) radius = width / 2;
-            if (height < 2 * radius) radius = height / 2;
-            if (radius < 0) radius = 0;
-            if (width <= 0 || height <= 0) return;
-
-            ctx.beginPath();
-            ctx.moveTo(x + radius, y);
-            ctx.arcTo(x + width, y, x + width, y + height, radius);
-            ctx.arcTo(x + width, y + height, x, y + height, radius);
-            ctx.arcTo(x, y + height, x, y, radius);
-            ctx.arcTo(x, y, x + width, y, radius);
-            ctx.closePath();
-            ctx.fillStyle = color;
-            ctx.fill();
-        }
-
-        // --- Search Functionality ---
-        async function fetchSearchResults(query) {
-            statusMessage.textContent = 'Searching...'; // General status
-            searchErrorMessage.classList.add('hidden');
-            searchResultsList.innerHTML = ''; // Clear previous results
-            noSearchResultsMessage.style.display = 'none'; // Hide placeholder/error messages
-            searchSpinner.classList.remove('hidden'); // Show spinner
-            performSearchBtn.disabled = true;
-            cancelSearchBtn.disabled = true;
-
-            const apiUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=20`;
-
-            try {
-                const response = await fetch(apiUrl);
-                if (!response.ok) {
-                    throw new Error(`Network response was not ok: ${response.statusText}`);
-                }
-                const data = await response.json();
-
-                if (data.products && data.products.length > 0) {
-                    displaySearchResults(data.products, query);
-                    statusMessage.textContent = `Search complete. Displaying ${data.products.length} results for "${query}".`;
-                } else {
-                    searchResultsList.innerHTML = '';
-                    noSearchResultsMessage.textContent = `No products found for "${query}". Try different keywords.`;
-                    noSearchResultsMessage.style.display = 'block';
-                    searchErrorMessage.classList.add('hidden'); // No technical error, just no results
-                    statusMessage.textContent = `No results for "${query}".`;
-                }
-            } catch (error) {
-                console.error("Fetch search error:", error);
-                searchErrorMessage.textContent = `Search failed: ${error.message}. Check connection or try again.`;
-                searchErrorMessage.classList.remove('hidden');
-                noSearchResultsMessage.textContent = 'Search error occurred.'; // This will be shown after spinner hides
-                noSearchResultsMessage.style.display = 'block';
-                searchResultsList.innerHTML = '';
-                statusMessage.textContent = 'Search error.';
-            } finally {
-                searchSpinner.classList.add('hidden'); // Hide spinner
-                performSearchBtn.disabled = false;
-                cancelSearchBtn.disabled = false;
-            }
-        }
-
-        function displaySearchResults(products, query) {
-            searchResultsList.innerHTML = ''; // Clear previous results or "Searching..." message
-
-            if (!products || products.length === 0) {
-                noSearchResultsMessage.textContent = `No products found for "${query}".`;
-                noSearchResultsMessage.style.display = 'block';
-                return;
-            }
-
-            noSearchResultsMessage.style.display = 'none'; // Hide "Searching..." or "No products found"
-
-            products.forEach(product => {
-                const item = document.createElement('div');
-                item.classList.add('p-3', 'mb-2', 'border', 'rounded-md', 'hover:bg-gray-200', 'cursor-pointer', 'transition', 'duration-150', 'ease-in-out');
-                item.setAttribute('data-barcode', product.code); // Barcode is in 'code' field
-
-                let productName = product.product_name_en || product.product_name || "Unknown Product";
-                let brandName = product.brands || "";
-
-                item.innerHTML = `
+          item.innerHTML = `
                     <p class="font-semibold text-gray-800">${productName}</p>
                     ${brandName ? `<p class="text-sm text-gray-600">${brandName}</p>` : ''}
-                `;
-                item.addEventListener('click', () => {
-                    const barcodeFromSearch = item.getAttribute('data-barcode');
-                    if (barcodeFromSearch) {
-                        // Hide search UI, show main results area
-                        searchFoodFormContainer.classList.add('hidden');
-                        searchResultsArea.classList.add('hidden');
-                        resultsArea.classList.remove('hidden'); // Ensure main results area is visible
-                        productInfoDiv.classList.add('hidden'); // Hide previous product info before fetching new
-                        errorMessageSpan.textContent = ''; // Clear previous error messages
+                `
+          item.addEventListener('click', () => {
+            const barcodeFromSearch = item.getAttribute('data-barcode')
+            if (barcodeFromSearch) {
+              // Hide search UI, show main results area
+              searchFoodFormContainer.classList.add('hidden')
+              searchResultsArea.classList.add('hidden')
+              resultsArea.classList.remove('hidden') // Ensure main results area is visible
+              productInfoDiv.classList.add('hidden') // Hide previous product info before fetching new
+              errorMessageSpan.textContent = '' // Clear previous error messages
 
-                        statusMessage.textContent = `Fetching details for product code: ${barcodeFromSearch}...`;
-                        fetchProductData(barcodeFromSearch, 'search'); // Specify sourceOperation as 'search'
-                    } else {
-                        console.error("Barcode not found on search result item.");
-                        statusMessage.textContent = 'Error: Could not retrieve product code.';
-                    }
-                });
-                searchResultsList.appendChild(item);
-            });
-        }
-
-        function handleSearchFormSubmit(event) {
-            event.preventDefault();
-            const query = searchQueryInput.value.trim();
-            if (!query) {
-                searchErrorMessage.textContent = 'Please enter a food name to search.';
-                searchErrorMessage.classList.remove('hidden');
-                searchQueryInput.focus();
-                return;
+              statusMessage.textContent = `Fetching details for product code: ${barcodeFromSearch}...`
+              fetchProductData(barcodeFromSearch, 'search') // Specify sourceOperation as 'search'
+            } else {
+              console.error('Barcode not found on search result item.')
+              statusMessage.textContent = 'Error: Could not retrieve product code.'
             }
-            searchErrorMessage.classList.add('hidden');
-            fetchSearchResults(query);
+          })
+          searchResultsList.appendChild(item)
+        })
+      }
+
+      function handleSearchFormSubmit(event) {
+        event.preventDefault()
+        const query = searchQueryInput.value.trim()
+        if (!query) {
+          searchErrorMessage.textContent = 'Please enter a food name to search.'
+          searchErrorMessage.classList.remove('hidden')
+          searchQueryInput.focus()
+          return
         }
+        searchErrorMessage.classList.add('hidden')
+        fetchSearchResults(query)
+      }
 
-        // Attach listener to search form
-        searchForm.addEventListener('submit', handleSearchFormSubmit);
+      // Attach listener to search form
+      searchForm.addEventListener('submit', handleSearchFormSubmit)
 
-
-        // --- Initial Setup ---
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeScanner();
-            loadHistory();
-            resetUI();
-            registerServiceWorker();
-            setupInstallButton();
-        });
-
+      // --- Initial Setup ---
+      document.addEventListener('DOMContentLoaded', () => {
+        initializeScanner()
+        loadHistory()
+        resetUI()
+        registerServiceWorker()
+        setupInstallButton()
+      })
     </script>
-
-</body>
+  </body>
 </html>
