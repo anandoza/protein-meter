@@ -1,4 +1,4 @@
-const CACHE_NAME = 'protein-meter-cache-v6'
+const CACHE_NAME = 'protein-meter-cache-v7'
 
 const urlsToCache = [
   './',

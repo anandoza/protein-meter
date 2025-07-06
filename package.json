@@ -27,7 +27,7 @@
   "bugs": {
     "url": "https://github.com/anandoza/protein-meter/issues"
   },
-  "homepage": "https://github.com/anandoza/protein-meter#readme",
+  "homepage": "https://anandoza.github.io/protein-meter/",
   "description": "",
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.11",
