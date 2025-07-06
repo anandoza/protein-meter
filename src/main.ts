@@ -17,6 +17,12 @@ import type {
   HistoryItem,
 } from './types'
 
+// PWA types
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
 class ProteinMeterApp {
   private eventBus = EventBus.getInstance()
 
@@ -294,12 +300,12 @@ class ProteinMeterApp {
 
   private initializePWA(): void {
     // PWA installation
-    let deferredPrompt: any
+    let deferredPrompt: BeforeInstallPromptEvent | null = null
     const installBtn = document.getElementById('install-pwa-btn') as HTMLButtonElement
 
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault()
-      deferredPrompt = e
+      deferredPrompt = e as BeforeInstallPromptEvent
       if (installBtn) {
         installBtn.classList.remove('hidden')
       }

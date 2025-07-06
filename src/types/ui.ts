@@ -51,6 +51,8 @@ export interface HistoryDeleteEvent {
   timestamp: string
 }
 
+import type { HistoryItem } from './history'
+
 export interface ComparisonSelectionChangeEvent {
-  selectedItems: any[] // Will be HistoryItem[] but avoiding circular imports
+  selectedItems: HistoryItem[]
 }

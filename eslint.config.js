@@ -5,6 +5,9 @@ import prettierPlugin from 'eslint-plugin-prettier'
 
 export default [
   {
+    ignores: ['node_modules/', 'dist/', 'build/', 'coverage/', '.vite/', '*.min.js'],
+  },
+  {
     files: ['**/*.{ts,tsx,js,jsx}'],
     languageOptions: {
       parser: typescriptEslintParser,

@@ -37,8 +37,10 @@ export interface SearchSubmitEvent {
   query: string
 }
 
+import type { ProductDisplayData } from '@/types'
+
 export interface ProductResultEvent {
-  data: any // ProductDisplayData
+  data: ProductDisplayData
   sourceOperation: string
 }
 
