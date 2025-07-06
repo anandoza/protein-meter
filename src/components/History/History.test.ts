@@ -336,7 +336,6 @@ describe('History', () => {
       expect(history.getCurrentMode()).toBe('normal')
     })
 
-
     it('emits history updated event after deletion', () => {
       const eventSpy = vi.fn()
       eventBus.on(EVENTS.HISTORY_UPDATED, eventSpy)
