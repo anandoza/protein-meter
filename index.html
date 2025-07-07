@@ -26,6 +26,17 @@
       .animate-spin {
         animation: spin 1s linear infinite;
       }
+      /* Make SVG icons in buttons inherit text color */
+      button img[src$='.svg'] {
+        filter: brightness(0) invert(1);
+      }
+      /* Force grid layout on desktop */
+      @media (min-width: 768px) {
+        .button-grid {
+          display: grid !important;
+          grid-template-columns: repeat(3, 1fr) !important;
+        }
+      }
     </style>
   </head>
   <body class="bg-gray-100 font-sans flex flex-col items-center min-h-screen p-4">
@@ -33,39 +44,37 @@
       <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">Protein Meter</h1>
 
       <div id="reader" class="mx-auto mb-4 inactive"></div>
-      <div class="text-center mb-6 space-x-2">
+      <div class="button-grid mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
         <button
           id="scan-barcode-btn"
-          class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md mb-2"
+          class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 md:py-2.5 px-4 rounded-full transition duration-300 ease-in-out shadow hover:shadow-md flex items-center justify-center gap-2 text-base md:text-sm"
         >
-          Scan Barcode
-        </button>
-        <button
-          id="manual-entry-btn"
-          class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md mb-2"
-        >
-          Manual Entry
+          <img src="/src/assets/icons/scan-barcode.svg" alt="Scan" class="w-5 h-5 flex-shrink-0" />
+          <span>Scan Barcode</span>
         </button>
         <button
           id="search-food-btn"
-          class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md mb-2"
+          class="bg-amber-500 hover:bg-amber-600 text-white font-medium py-3 md:py-2.5 px-4 rounded-full transition duration-300 ease-in-out shadow hover:shadow-md flex items-center justify-center gap-2 text-base md:text-sm"
         >
-          Search Food
+          <img src="/src/assets/icons/search.svg" alt="Search" class="w-5 h-5 flex-shrink-0" />
+          <span>Search Food</span>
+        </button>
+        <button
+          id="manual-entry-btn"
+          class="bg-green-500 hover:bg-green-600 text-white font-medium py-3 md:py-2.5 px-4 rounded-full transition duration-300 ease-in-out shadow hover:shadow-md flex items-center justify-center gap-2 text-base md:text-sm"
+        >
+          <img
+            src="/src/assets/icons/manual-entry.svg"
+            alt="Manual Entry"
+            class="w-5 h-5 flex-shrink-0"
+          />
+          <span>Manual Entry</span>
         </button>
         <button
           id="stop-scan-btn"
-          class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden transition duration-300 ease-in-out shadow hover:shadow-md"
+          class="bg-red-500 hover:bg-red-600 text-white font-medium py-3 md:py-2.5 px-6 rounded-full hidden transition duration-300 ease-in-out shadow hover:shadow-md md:col-span-3"
         >
           Stop Scanning
-        </button>
-      </div>
-
-      <div class="text-center mb-6">
-        <button
-          id="install-pwa-btn"
-          class="bg-purple-600 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md hidden"
-        >
-          Install App...
         </button>
       </div>
 
@@ -301,6 +310,15 @@
             No history yet.
           </p>
         </div>
+      </div>
+
+      <div class="text-center mt-6">
+        <button
+          id="install-pwa-btn"
+          class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2.5 px-6 rounded-full transition duration-300 ease-in-out shadow hover:shadow-md hidden"
+        >
+          Install App
+        </button>
       </div>
     </div>
 
