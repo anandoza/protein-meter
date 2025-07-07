@@ -57,12 +57,7 @@
     "html5-qrcode": "^2.3.8"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": [
-      "prettier --check",
-      "eslint --max-warnings 0"
-    ],
-    "*.{json,css,md,yml,yaml}": [
-      "prettier --check"
-    ]
+    "*": "npm run format:check",
+    "*.{ts,tsx,js,jsx}": "npm run lint"
   }
 }
