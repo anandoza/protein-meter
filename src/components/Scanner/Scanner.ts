@@ -122,14 +122,10 @@ export class Scanner {
     console.error(`Unable to start scanning: ${error}`)
 
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    this.updateStatus(
-      `${UI_MESSAGES.SCANNER_ERROR}: ${errorMessage}. ${UI_MESSAGES.PERMISSION_ERROR}`
-    )
-
     this.setInactiveState()
 
     this.eventBus.emit<ScanErrorEvent>(EVENTS.SCAN_ERROR, {
-      error: errorMessage,
+      error: `${UI_MESSAGES.SCANNER_ERROR}: ${errorMessage}. ${UI_MESSAGES.PERMISSION_ERROR}`,
     })
   }
 
@@ -144,6 +140,9 @@ export class Scanner {
     this.lastScannedBarcode = null
     this.updateStatus(UI_MESSAGES.SCANNER_SCANNING)
     this.updateButtonVisibility(false, true)
+
+    // Clear any previous errors when scanning starts successfully
+    this.eventBus.emit(EVENTS.SCAN_ERROR, { error: '' })
   }
 
   private setInactiveState(): void {
