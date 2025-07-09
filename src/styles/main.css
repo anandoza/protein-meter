@@ -229,7 +229,7 @@
 }
 
 /* Loading spinner */
-.spinner {
+.animate-spin {
   animation: spin 1s linear infinite;
 }
 
@@ -239,5 +239,18 @@
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Button icon styles */
+button img {
+  filter: brightness(0) invert(1);
+}
+
+/* Force grid layout on desktop */
+@media (min-width: 768px) {
+  .button-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
   }
 }
