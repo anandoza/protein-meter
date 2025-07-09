@@ -1,6 +1,20 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { Scanner } from './Scanner'
-import { EVENTS } from '@/utils/events'
+import { EVENTS, EventBus } from '@/utils/events'
+
+// Mock the EventBus
+vi.mock('@/utils/events', () => ({
+  EventBus: {
+    getInstance: vi.fn(() => ({
+      on: vi.fn(),
+      emit: vi.fn(),
+    })),
+  },
+  EVENTS: {
+    BARCODE_SCANNED: 'barcode-scanned',
+    SCAN_ERROR: 'scan-error',
+  },
+}))
 
 // Mock Html5Qrcode
 const mockHtml5Qrcode = {
@@ -40,11 +54,19 @@ describe('Scanner', () => {
   let scanButton: HTMLButtonElement
   let stopButton: HTMLButtonElement
   let statusElement: HTMLElement
+  let mockEventBus: any
 
   beforeEach(() => {
     // Reset mocks
     vi.clearAllMocks()
     mockHtml5Qrcode.isScanning = false
+
+    // Mock EventBus
+    mockEventBus = {
+      on: vi.fn(),
+      emit: vi.fn(),
+    }
+    vi.mocked(EventBus.getInstance).mockReturnValue(mockEventBus)
 
     // Create mock DOM elements
     readerElement = createMockElement('reader')
@@ -134,8 +156,9 @@ describe('Scanner', () => {
       await scanner.startScanning()
 
       expect(scanner.isCurrentlyScanning()).toBe(false)
-      expect(statusElement.textContent).toContain('Error starting scanner')
-      expect(statusElement.textContent).toContain('Camera permission denied')
+      expect(mockEventBus.emit).toHaveBeenCalledWith(EVENTS.SCAN_ERROR, {
+        error: 'Error starting scanner: Camera permission denied. Check permissions & HTTPS.',
+      })
     })
 
     it('does not start if already scanning', async () => {
@@ -200,20 +223,14 @@ describe('Scanner', () => {
         return Promise.resolve()
       })
 
-      const eventSpy = vi.fn()
-      const eventBus = (scanner as any).eventBus
-      eventBus.on(EVENTS.BARCODE_SCANNED, eventSpy)
-
       await scanner.startScanning()
 
       // Now trigger the callback after scanning has started
       capturedCallback?.('1234567890')
 
-      expect(eventSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          detail: { barcode: '1234567890' },
-        })
-      )
+      expect(mockEventBus.emit).toHaveBeenCalledWith(EVENTS.BARCODE_SCANNED, {
+        barcode: '1234567890',
+      })
       expect(statusElement.textContent).toContain('Barcode detected: 1234567890')
     })
 
@@ -225,16 +242,17 @@ describe('Scanner', () => {
         return Promise.resolve()
       })
 
-      const eventSpy = vi.fn()
-      const eventBus = (scanner as any).eventBus
-      eventBus.on(EVENTS.BARCODE_SCANNED, eventSpy)
-
       await scanner.startScanning()
 
       capturedCallback?.('1234567890')
       capturedCallback?.('1234567890') // Same barcode
 
-      expect(eventSpy).toHaveBeenCalledTimes(1)
+      // Check that BARCODE_SCANNED was only emitted once due to duplicate filtering
+      const barcodeScannedCalls = mockEventBus.emit.mock.calls.filter(
+        (call: any) => call[0] === EVENTS.BARCODE_SCANNED
+      )
+      expect(barcodeScannedCalls).toHaveLength(1)
+      expect(barcodeScannedCalls[0]).toEqual([EVENTS.BARCODE_SCANNED, { barcode: '1234567890' }])
     })
 
     it('allows different barcodes', async () => {
@@ -245,24 +263,18 @@ describe('Scanner', () => {
         return Promise.resolve()
       })
 
-      const eventSpy = vi.fn()
-      const eventBus = (scanner as any).eventBus
-      eventBus.on(EVENTS.BARCODE_SCANNED, eventSpy)
-
       await scanner.startScanning()
 
       capturedCallback?.('1234567890')
       capturedCallback?.('0987654321') // Different barcode
 
-      expect(eventSpy).toHaveBeenCalledTimes(2)
-      expect(eventSpy).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({ detail: { barcode: '1234567890' } })
+      // Check that BARCODE_SCANNED was emitted twice for different barcodes
+      const barcodeScannedCalls = mockEventBus.emit.mock.calls.filter(
+        (call: any) => call[0] === EVENTS.BARCODE_SCANNED
       )
-      expect(eventSpy).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ detail: { barcode: '0987654321' } })
-      )
+      expect(barcodeScannedCalls).toHaveLength(2)
+      expect(barcodeScannedCalls[0]).toEqual([EVENTS.BARCODE_SCANNED, { barcode: '1234567890' }])
+      expect(barcodeScannedCalls[1]).toEqual([EVENTS.BARCODE_SCANNED, { barcode: '0987654321' }])
     })
   })
 

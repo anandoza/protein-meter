@@ -5,6 +5,7 @@ import { SearchFood } from './components/SearchFood/SearchFood'
 import { ResultsDisplay } from './components/ResultsDisplay/ResultsDisplay'
 import { History } from './components/History/History'
 import { ComparisonModal } from './components/ComparisonModal/ComparisonModal'
+import { ErrorView } from './components/ErrorView/ErrorView'
 import { ProteinCalculator } from './services/calculator/proteinCalculator'
 import { HistoryStorage } from './services/storage/historyStorage'
 import { OpenFoodFactsAPI } from './services/api/openFoodFactsAPI'
@@ -31,6 +32,7 @@ class ProteinMeterApp {
   private manualEntry!: ManualEntry
   private searchFood!: SearchFood
   private resultsDisplay!: ResultsDisplay
+  private errorView!: ErrorView
 
   // UI elements
   private manualEntryBtn!: HTMLButtonElement
@@ -118,6 +120,9 @@ class ProteinMeterApp {
       'close-comparison-modal-btn'
     )
 
+    // Initialize Error View
+    this.errorView = new ErrorView('error-display')
+
     // Get UI buttons
     this.manualEntryBtn = document.getElementById('manual-entry-btn') as HTMLButtonElement
     this.searchFoodBtn = document.getElementById('search-food-btn') as HTMLButtonElement
@@ -143,11 +148,13 @@ class ProteinMeterApp {
   private setupUIEventListeners(): void {
     // Manual entry button
     this.manualEntryBtn.addEventListener('click', () => {
+      this.errorView.clear()
       this.showManualEntry()
     })
 
     // Search food button
     this.searchFoodBtn.addEventListener('click', () => {
+      this.errorView.clear()
       this.showSearchFood()
     })
   }
