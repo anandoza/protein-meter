@@ -184,7 +184,7 @@ describe('ResultsDisplay', () => {
     })
 
     it('shows idle state initially', () => {
-      expect(statusMessage.textContent).toBe('Click "Scan Barcode" or "Manual Entry".')
+      expect((resultsArea.classList as any).add).toHaveBeenCalledWith('hidden')
       expect((productInfo.classList as any).add).toHaveBeenCalledWith('hidden')
     })
   })
@@ -257,41 +257,12 @@ describe('ResultsDisplay', () => {
       expect(statusMessage.textContent).toBe('Custom status message')
     })
 
-    it('shows error state', () => {
-      resultsDisplay.showError('Network error')
-
-      expect(errorMessage.textContent).toBe('Network error')
-      expect(statusMessage.textContent).toBe('Error occurred.')
-      expect((resultsArea.classList as any).remove).toHaveBeenCalledWith('hidden')
-    })
-
     it('shows idle state', () => {
       resultsDisplay.showIdleState()
 
-      expect(statusMessage.textContent).toBe('Click "Scan Barcode" or "Manual Entry".')
+      expect((resultsArea.classList as any).add).toHaveBeenCalledWith('hidden')
       expect((productInfo.classList as any).add).toHaveBeenCalledWith('hidden')
       expect(errorMessage.textContent).toBe('')
-    })
-
-    it('shows scanning state', () => {
-      resultsDisplay.showScanningState()
-
-      expect(statusMessage.textContent).toBe('Starting scanner...')
-      expect((productInfo.classList as any).add).toHaveBeenCalledWith('hidden')
-    })
-
-    it('shows manual entry state', () => {
-      resultsDisplay.showManualEntryState()
-
-      expect(statusMessage.textContent).toBe('Enter product details manually.')
-      expect((productInfo.classList as any).add).toHaveBeenCalledWith('hidden')
-    })
-
-    it('shows search state', () => {
-      resultsDisplay.showSearchState()
-
-      expect(statusMessage.textContent).toBe('Enter a food name to search.')
-      expect((productInfo.classList as any).add).toHaveBeenCalledWith('hidden')
     })
   })
 

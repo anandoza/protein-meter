@@ -9,7 +9,7 @@ import { ErrorView } from './components/ErrorView/ErrorView'
 import { ProteinCalculator } from './services/calculator/proteinCalculator'
 import { HistoryStorage } from './services/storage/historyStorage'
 import { OpenFoodFactsAPI } from './services/api/openFoodFactsAPI'
-import { EventBus, EVENTS } from './utils/events'
+import { EventBus, EVENTS, type ScanErrorEvent } from './utils/events'
 import type {
   BarcodeScannedEvent,
   ManualEntrySubmitEvent,
@@ -35,6 +35,7 @@ class ProteinMeterApp {
   private errorView!: ErrorView
 
   // UI elements
+  private scanBarcodeBtn!: HTMLButtonElement
   private manualEntryBtn!: HTMLButtonElement
   private searchFoodBtn!: HTMLButtonElement
 
@@ -124,8 +125,17 @@ class ProteinMeterApp {
     this.errorView = new ErrorView('error-display')
 
     // Get UI buttons
+    this.scanBarcodeBtn = document.getElementById('scan-barcode-btn') as HTMLButtonElement
     this.manualEntryBtn = document.getElementById('manual-entry-btn') as HTMLButtonElement
     this.searchFoodBtn = document.getElementById('search-food-btn') as HTMLButtonElement
+
+    // Get stop scan button
+    const stopScanBtn = document.getElementById('stop-scan-btn') as HTMLButtonElement
+
+    // Add stop scan button listener
+    stopScanBtn.addEventListener('click', () => {
+      this.showIdle()
+    })
   }
 
   private setupEventListeners(): void {
@@ -146,6 +156,12 @@ class ProteinMeterApp {
   }
 
   private setupUIEventListeners(): void {
+    // Scan barcode button
+    this.scanBarcodeBtn.addEventListener('click', () => {
+      this.errorView.clear()
+      this.showScanning()
+    })
+
     // Manual entry button
     this.manualEntryBtn.addEventListener('click', () => {
       this.errorView.clear()
@@ -193,9 +209,9 @@ class ProteinMeterApp {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      this.resultsDisplay.showError(
-        `Failed to fetch product data: ${errorMessage}. Please try again.`
-      )
+      this.eventBus.emit<ScanErrorEvent>(EVENTS.SCAN_ERROR, {
+        error: `Failed to fetch product data: ${errorMessage}. Please try again.`,
+      })
     }
   }
 
@@ -267,14 +283,14 @@ class ProteinMeterApp {
   // UI State Management
   private showIdle(): void {
     this.hideAllForms()
+    this.showMainActionButtons()
     this.resultsDisplay.showIdleState()
-    this.resultsDisplay.show()
   }
 
   private showScanning(): void {
     this.hideAllForms()
-    this.resultsDisplay.showScanningState()
-    this.resultsDisplay.show()
+    this.hideMainActionButtons()
+    this.resultsDisplay.hide()
   }
 
   private showManualEntry(): void {
@@ -282,6 +298,7 @@ class ProteinMeterApp {
       this.scanner.stopScanning()
     }
     this.hideAllForms()
+    this.hideMainActionButtons()
     this.manualEntry.show()
     this.resultsDisplay.hide()
   }
@@ -291,18 +308,32 @@ class ProteinMeterApp {
       this.scanner.stopScanning()
     }
     this.hideAllForms()
+    this.hideMainActionButtons()
     this.searchFood.show()
     this.resultsDisplay.hide()
   }
 
   private showResults(): void {
     this.hideAllForms()
+    this.showMainActionButtons()
     this.resultsDisplay.show()
   }
 
   private hideAllForms(): void {
     this.manualEntry.hide()
     this.searchFood.hide()
+  }
+
+  private showMainActionButtons(): void {
+    this.scanBarcodeBtn.classList.remove('hidden')
+    this.manualEntryBtn.classList.remove('hidden')
+    this.searchFoodBtn.classList.remove('hidden')
+  }
+
+  private hideMainActionButtons(): void {
+    this.scanBarcodeBtn.classList.add('hidden')
+    this.manualEntryBtn.classList.add('hidden')
+    this.searchFoodBtn.classList.add('hidden')
   }
 
   private initializePWA(): void {
