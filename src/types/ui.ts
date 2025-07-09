@@ -2,6 +2,8 @@ export type UIMode = 'idle' | 'scanning' | 'manual-entry' | 'search'
 
 export type HistoryMode = 'normal' | 'deleting' | 'comparison'
 
+export type ThemeMode = 'system' | 'light' | 'dark'
+
 export interface UIState {
   mode: UIMode
   historyMode: HistoryMode
@@ -55,4 +57,9 @@ import type { HistoryItem } from './history'
 
 export interface ComparisonSelectionChangeEvent {
   selectedItems: HistoryItem[]
+}
+
+export interface ThemeChangeEvent {
+  theme: ThemeMode
+  previousTheme?: ThemeMode
 }

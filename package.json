@@ -54,7 +54,8 @@
     "workbox-window": "^7.3.0"
   },
   "dependencies": {
-    "html5-qrcode": "^2.3.8"
+    "html5-qrcode": "^2.3.8",
+    "lucide": "^0.525.0"
   },
   "lint-staged": {
     "*": "npm run format:check",

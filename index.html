@@ -13,32 +13,86 @@
     <link rel="icon" href="app-icon.svg" type="image/svg+xml" />
     <title>Protein Meter</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              // Base colors
+              background: 'rgb(var(--color-background))',
+              foreground: 'rgb(var(--color-foreground))',
+              muted: 'rgb(var(--color-muted))',
+              'muted-foreground': 'rgb(var(--color-muted-foreground))',
+
+              // Surface colors
+              card: 'rgb(var(--color-card))',
+              'card-foreground': 'rgb(var(--color-card-foreground))',
+              popover: 'rgb(var(--color-popover))',
+              'popover-foreground': 'rgb(var(--color-popover-foreground))',
+
+              // Border and input
+              border: 'rgb(var(--color-border))',
+              input: 'rgb(var(--color-input))',
+              'input-border': 'rgb(var(--color-input-border))',
+              'input-foreground': 'rgb(var(--color-input-foreground))',
+
+              // Primary colors
+              primary: 'rgb(var(--color-primary))',
+              'primary-foreground': 'rgb(var(--color-primary-foreground))',
+              secondary: 'rgb(var(--color-secondary))',
+              'secondary-foreground': 'rgb(var(--color-secondary-foreground))',
+
+              // Accent colors
+              accent: 'rgb(var(--color-accent))',
+              'accent-foreground': 'rgb(var(--color-accent-foreground))',
+
+              // State colors
+              destructive: 'rgb(var(--color-destructive))',
+              'destructive-foreground': 'rgb(var(--color-destructive-foreground))',
+              success: 'rgb(var(--color-success))',
+              'success-foreground': 'rgb(var(--color-success-foreground))',
+              warning: 'rgb(var(--color-warning))',
+              'warning-foreground': 'rgb(var(--color-warning-foreground))',
+
+              // Ring and focus
+              ring: 'rgb(var(--color-ring))',
+            },
+          },
+        },
+      }
+    </script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   </head>
-  <body class="bg-gray-100 font-sans flex flex-col items-center min-h-screen p-4">
-    <div class="bg-white p-6 md:p-8 rounded-lg shadow-xl w-full max-w-2xl">
-      <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">Protein Meter</h1>
+  <body class="bg-background font-sans flex flex-col items-center min-h-screen p-4">
+    <div class="bg-card p-6 md:p-8 rounded-lg shadow-xl w-full max-w-2xl">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl md:text-3xl font-bold text-card-foreground flex-grow text-center">
+          Protein Meter
+        </h1>
+        <div id="theme-toggle-container" class="flex-shrink-0"></div>
+      </div>
 
       <div id="reader" class="mx-auto mb-4 inactive"></div>
       <div id="error-display" class="hidden"></div>
       <div class="button-grid mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
         <button
           id="scan-barcode-btn"
-          class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 md:py-2.5 px-4 rounded-full transition duration-300 ease-in-out shadow hover:shadow-md flex items-center justify-center gap-2 text-base md:text-sm"
+          class="bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 md:py-2.5 px-4 rounded-full transition duration-300 ease-in-out shadow hover:shadow-md flex items-center justify-center gap-2 text-base md:text-sm"
         >
           <img src="/src/assets/icons/scan-barcode.svg" alt="Scan" class="w-5 h-5 flex-shrink-0" />
           <span>Scan Barcode</span>
         </button>
         <button
           id="search-food-btn"
-          class="bg-amber-500 hover:bg-amber-600 text-white font-medium py-3 md:py-2.5 px-4 rounded-full transition duration-300 ease-in-out shadow hover:shadow-md flex items-center justify-center gap-2 text-base md:text-sm"
+          class="bg-warning hover:bg-warning/90 text-warning-foreground font-medium py-3 md:py-2.5 px-4 rounded-full transition duration-300 ease-in-out shadow hover:shadow-md flex items-center justify-center gap-2 text-base md:text-sm"
         >
           <img src="/src/assets/icons/search.svg" alt="Search" class="w-5 h-5 flex-shrink-0" />
           <span>Search Food</span>
         </button>
         <button
           id="manual-entry-btn"
-          class="bg-green-500 hover:bg-green-600 text-white font-medium py-3 md:py-2.5 px-4 rounded-full transition duration-300 ease-in-out shadow hover:shadow-md flex items-center justify-center gap-2 text-base md:text-sm"
+          class="bg-success hover:bg-success/90 text-success-foreground font-medium py-3 md:py-2.5 px-4 rounded-full transition duration-300 ease-in-out shadow hover:shadow-md flex items-center justify-center gap-2 text-base md:text-sm"
         >
           <img
             src="/src/assets/icons/manual-entry.svg"
@@ -49,7 +103,7 @@
         </button>
         <button
           id="stop-scan-btn"
-          class="bg-red-500 hover:bg-red-600 text-white font-medium py-3 md:py-2.5 px-6 rounded-full hidden transition duration-300 ease-in-out shadow hover:shadow-md md:col-span-3"
+          class="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-medium py-3 md:py-2.5 px-6 rounded-full hidden transition duration-300 ease-in-out shadow hover:shadow-md md:col-span-3"
         >
           Stop Scanning
         </button>
@@ -57,25 +111,27 @@
 
       <div
         id="manual-entry-form"
-        class="hidden bg-indigo-50 p-4 md:p-6 rounded-lg border border-indigo-200 mt-6"
+        class="hidden bg-secondary p-4 md:p-6 rounded-lg border border-border mt-6"
       >
-        <h2 class="text-xl font-semibold text-indigo-800 mb-4">Manual Entry</h2>
+        <h2 class="text-xl font-semibold text-secondary-foreground mb-4">Manual Entry</h2>
         <form id="entry-form">
           <div class="mb-3">
-            <label for="manual-name" class="block text-sm font-medium text-gray-700 mb-1"
+            <label for="manual-name" class="block text-sm font-medium text-muted-foreground mb-1"
               >Product Name (Optional)</label
             >
             <input
               type="text"
               id="manual-name"
               name="manual-name"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              class="w-full px-3 py-2 border border-input-border bg-input text-input-foreground rounded-md shadow-sm focus:outline-none focus:ring-ring focus:border-ring"
             />
           </div>
           <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label for="manual-calories" class="block text-sm font-medium text-gray-700 mb-1"
-                >Calories<span class="text-red-500">*</span></label
+              <label
+                for="manual-calories"
+                class="block text-sm font-medium text-muted-foreground mb-1"
+                >Calories<span class="text-destructive">*</span></label
               >
               <input
                 type="number"
@@ -84,12 +140,14 @@
                 required
                 min="0"
                 step="any"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                class="w-full px-3 py-2 border border-input-border bg-input text-input-foreground rounded-md shadow-sm focus:outline-none focus:ring-ring focus:border-ring"
               />
             </div>
             <div>
-              <label for="manual-protein" class="block text-sm font-medium text-gray-700 mb-1"
-                >Protein (g)<span class="text-red-500">*</span></label
+              <label
+                for="manual-protein"
+                class="block text-sm font-medium text-muted-foreground mb-1"
+                >Protein (g)<span class="text-destructive">*</span></label
               >
               <input
                 type="number"
@@ -98,11 +156,11 @@
                 required
                 min="0"
                 step="any"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                class="w-full px-3 py-2 border border-input-border bg-input text-input-foreground rounded-md shadow-sm focus:outline-none focus:ring-ring focus:border-ring"
               />
             </div>
           </div>
-          <p id="manual-entry-error" class="text-red-600 text-sm mb-3 hidden"></p>
+          <p id="manual-entry-error" class="text-destructive text-sm mb-3 hidden"></p>
           <div class="flex justify-end space-x-3">
             <button
               type="button"
@@ -124,23 +182,25 @@
 
       <div
         id="search-food-form-container"
-        class="hidden bg-indigo-50 p-4 md:p-6 rounded-lg border border-indigo-200 mt-6"
+        class="hidden bg-secondary p-4 md:p-6 rounded-lg border border-border mt-6"
       >
-        <h2 class="text-xl font-semibold text-indigo-800 mb-4">Search Food by Name</h2>
+        <h2 class="text-xl font-semibold text-secondary-foreground mb-4">Search Food by Name</h2>
         <form id="search-form">
           <div class="mb-3">
-            <label for="search-query-input" class="block text-sm font-medium text-gray-700 mb-1"
-              >Food Name<span class="text-red-500">*</span></label
+            <label
+              for="search-query-input"
+              class="block text-sm font-medium text-muted-foreground mb-1"
+              >Food Name<span class="text-destructive">*</span></label
             >
             <input
               type="text"
               id="search-query-input"
               name="search-query-input"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              class="w-full px-3 py-2 border border-input-border bg-input text-input-foreground rounded-md shadow-sm focus:outline-none focus:ring-ring focus:border-ring"
             />
           </div>
-          <p id="search-error-message" class="text-red-600 text-sm mb-3 hidden"></p>
+          <p id="search-error-message" class="text-destructive text-sm mb-3 hidden"></p>
           <div class="flex justify-end space-x-3">
             <button
               type="button"
@@ -162,60 +222,62 @@
 
       <div
         id="results-area"
-        class="bg-gray-50 p-4 md:p-6 rounded-lg border border-gray-200 min-h-[150px] mt-6"
+        class="bg-secondary p-4 md:p-6 rounded-lg border border-border min-h-[150px] mt-6"
       >
-        <div id="status-message" class="text-gray-600 italic mb-4">
+        <div id="status-message" class="text-muted-foreground italic mb-4">
           Click "Scan Barcode" or "Manual Entry".
         </div>
         <div id="product-info" class="hidden space-y-3">
           <p>
-            <strong class="font-medium text-gray-800 w-28 inline-block">Product:</strong>
-            <span id="product-name" class="text-gray-700 font-semibold"></span>
+            <strong class="font-medium text-card-foreground w-28 inline-block">Product:</strong>
+            <span id="product-name" class="text-card-foreground font-semibold"></span>
           </p>
           <div class="flex items-center space-x-3">
-            <strong class="font-medium text-gray-800 w-28 inline-block shrink-0">Protein %:</strong>
+            <strong class="font-medium text-card-foreground w-28 inline-block shrink-0"
+              >Protein %:</strong
+            >
             <div class="percentage-bar-container flex-grow">
               <div id="protein-bar" class="percentage-bar-fill" style="width: 0%">0%</div>
             </div>
             <span
               id="protein-label"
-              class="text-sm font-medium text-gray-600 w-24 text-right shrink-0"
+              class="text-sm font-medium text-muted-foreground w-24 text-right shrink-0"
               >N/A</span
             >
           </div>
           <p id="barcode-row">
-            <strong class="font-medium text-gray-800 w-28 inline-block">Barcode:</strong>
-            <span id="barcode-result" class="text-gray-700 mr-2"></span>
+            <strong class="font-medium text-card-foreground w-28 inline-block">Barcode:</strong>
+            <span id="barcode-result" class="text-card-foreground mr-2"></span>
             <a
               id="off-link"
               href="#"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-blue-500 hover:text-blue-700 hover:underline text-sm hidden"
+              class="text-primary hover:text-primary/80 hover:underline text-sm hidden"
               >[View on Open Food Facts]</a
             >
           </p>
-          <div class="pt-2 text-sm text-gray-600 space-y-1">
+          <div class="pt-2 text-sm text-muted-foreground space-y-1">
             <p>
-              <strong class="font-medium text-gray-800 w-28 inline-block">Protein:</strong>
+              <strong class="font-medium text-card-foreground w-28 inline-block">Protein:</strong>
               <span id="protein-grams">N/A</span> <span class="unit-label">/ 100g</span>
             </p>
             <p>
-              <strong class="font-medium text-gray-800 w-28 inline-block">Calories:</strong>
+              <strong class="font-medium text-card-foreground w-28 inline-block">Calories:</strong>
               <span id="energy-kcal">N/A</span> kcal <span class="unit-label">/ 100g</span>
             </p>
           </div>
-          <p id="error-message" class="text-red-600 font-medium pt-2"></p>
+          <p id="error-message" class="text-destructive font-medium pt-2"></p>
         </div>
       </div>
 
       <div
         id="search-results-area"
-        class="bg-gray-50 p-4 md:p-6 rounded-lg border border-gray-200 min-h-[100px] mt-6 hidden"
+        class="bg-secondary p-4 md:p-6 rounded-lg border border-border min-h-[100px] mt-6 hidden"
       >
         <div id="search-spinner" class="hidden text-center p-4">
           <svg
-            class="animate-spin h-8 w-8 text-indigo-600 mx-auto"
+            class="animate-spin h-8 w-8 text-primary mx-auto"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -234,9 +296,9 @@
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             ></path>
           </svg>
-          <p class="text-indigo-600 mt-2 text-sm">Searching...</p>
+          <p class="text-primary mt-2 text-sm">Searching...</p>
         </div>
-        <p id="no-search-results-message" class="text-center text-gray-500 italic p-4">
+        <p id="no-search-results-message" class="text-center text-muted-foreground italic p-4">
           Type a food name and click search.
         </p>
         <div id="search-results-list">
@@ -246,25 +308,25 @@
 
       <div id="history-section" class="mt-8">
         <div class="flex justify-between items-center mb-3">
-          <h2 class="text-xl font-semibold text-gray-700">Scan History</h2>
+          <h2 class="text-xl font-semibold text-card-foreground">Scan History</h2>
           <div class="space-x-3">
             <button
               id="compare-mode-btn"
-              class="text-sm text-green-500 hover:text-green-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+              class="text-sm text-success hover:text-success/80 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
               disabled
             >
               Compare
             </button>
             <button
               id="manage-history-btn"
-              class="text-sm text-blue-500 hover:text-blue-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+              class="text-sm text-primary hover:text-primary/80 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
               disabled
             >
               Manage History
             </button>
             <button
               id="clear-all-btn"
-              class="text-sm text-red-500 hover:text-red-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed hidden"
+              class="text-sm text-destructive hover:text-destructive/80 hover:underline disabled:opacity-50 disabled:cursor-not-allowed hidden"
             >
               Clear All
             </button>
@@ -273,7 +335,7 @@
         <div id="comparison-actions" class="text-center mb-3 hidden">
           <button
             id="generate-comparison-image-btn"
-            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md"
+            class="bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow hover:shadow-md"
             disabled
           >
             Generate Comparison Image
@@ -281,9 +343,9 @@
         </div>
         <div
           id="history-list"
-          class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-white"
+          class="max-h-96 overflow-y-auto border border-border rounded-lg p-2 bg-card"
         >
-          <p id="no-history-message" class="text-center text-gray-500 italic p-4">
+          <p id="no-history-message" class="text-center text-muted-foreground italic p-4">
             No history yet.
           </p>
         </div>
@@ -292,20 +354,20 @@
       <div class="text-center mt-6">
         <button
           id="install-pwa-btn"
-          class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2.5 px-6 rounded-full transition duration-300 ease-in-out shadow hover:shadow-md hidden"
+          class="bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 px-6 rounded-full transition duration-300 ease-in-out shadow hover:shadow-md hidden"
         >
           Install App
         </button>
       </div>
     </div>
 
-    <footer class="text-center text-gray-500 text-sm mt-8">
+    <footer class="text-center text-muted-foreground text-sm mt-8">
       Powered by
       <a
         href="https://openfoodfacts.org/"
         target="_blank"
         rel="noopener noreferrer"
-        class="text-blue-500 hover:underline"
+        class="text-primary hover:underline"
         >Open Food Facts</a
       >
       and html5-qrcode.
@@ -313,26 +375,26 @@
 
     <div
       id="comparison-modal"
-      class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 hidden z-50"
+      class="fixed inset-0 bg-background/80 flex items-center justify-center p-4 hidden z-50"
     >
-      <div class="bg-white p-6 rounded-lg shadow-xl max-w-3xl w-full">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Food Comparison</h2>
+      <div class="bg-card p-6 rounded-lg shadow-xl max-w-3xl w-full">
+        <h2 class="text-xl font-bold text-card-foreground mb-4">Food Comparison</h2>
         <div
           id="comparison-canvas-container"
-          class="mb-4 border border-gray-300 rounded overflow-auto max-h-[60vh]"
+          class="mb-4 border border-border rounded overflow-auto max-h-[60vh]"
         >
           Canvas will go here
         </div>
         <div class="text-center">
           <button
             id="download-comparison-btn"
-            class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg mr-2"
+            class="bg-success hover:bg-success/90 text-success-foreground font-bold py-2 px-4 rounded-lg mr-2"
           >
             Download Image
           </button>
           <button
             id="close-comparison-modal-btn"
-            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg"
+            class="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold py-2 px-4 rounded-lg"
           >
             Close
           </button>

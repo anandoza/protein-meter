@@ -6,9 +6,11 @@ import { ResultsDisplay } from './components/ResultsDisplay/ResultsDisplay'
 import { History } from './components/History/History'
 import { ComparisonModal } from './components/ComparisonModal/ComparisonModal'
 import { ErrorView } from './components/ErrorView/ErrorView'
+import { ThemeToggle } from './components/ThemeToggle/ThemeToggle'
 import { ProteinCalculator } from './services/calculator/proteinCalculator'
 import { HistoryStorage } from './services/storage/historyStorage'
 import { OpenFoodFactsAPI } from './services/api/openFoodFactsAPI'
+import { ThemeManager } from './services/theme/themeManager'
 import { EventBus, EVENTS } from './utils/events'
 import type {
   BarcodeScannedEvent,
@@ -33,6 +35,7 @@ class ProteinMeterApp {
   private searchFood!: SearchFood
   private resultsDisplay!: ResultsDisplay
   private errorView!: ErrorView
+  private themeToggle?: ThemeToggle
 
   // UI elements
   private manualEntryBtn!: HTMLButtonElement
@@ -53,6 +56,7 @@ class ProteinMeterApp {
 
   private initializeApp(): void {
     try {
+      this.initializeTheme()
       this.initializeComponents()
       this.setupEventListeners()
       this.setupUIEventListeners()
@@ -61,6 +65,11 @@ class ProteinMeterApp {
     } catch (error) {
       console.error('Failed to initialize app:', error)
     }
+  }
+
+  private initializeTheme(): void {
+    // Initialize theme manager early to apply saved theme
+    ThemeManager.getInstance()
   }
 
   private initializeComponents(): void {
@@ -122,6 +131,13 @@ class ProteinMeterApp {
 
     // Initialize Error View
     this.errorView = new ErrorView('error-display')
+
+    // Initialize Theme Toggle
+    const themeToggleContainer = document.getElementById('theme-toggle-container')
+    if (themeToggleContainer) {
+      this.themeToggle = new ThemeToggle(themeToggleContainer)
+      this.themeToggle.show()
+    }
 
     // Get UI buttons
     this.manualEntryBtn = document.getElementById('manual-entry-btn') as HTMLButtonElement

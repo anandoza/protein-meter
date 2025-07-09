@@ -15,6 +15,7 @@ export const EVENTS = {
   HISTORY_DELETE: 'history-delete',
   HISTORY_CLEAR_ALL: 'history-clear-all',
   COMPARISON_SELECTION_CHANGE: 'comparison-selection-change',
+  THEME_CHANGE: 'theme-change',
 } as const
 
 // Re-export event interfaces from types
@@ -25,6 +26,7 @@ export type {
   HistoryModeChangeEvent,
   HistoryDeleteEvent,
   ComparisonSelectionChangeEvent,
+  ThemeChangeEvent,
 } from '@/types'
 
 // Event data interfaces
