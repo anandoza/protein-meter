@@ -9,7 +9,7 @@ import { ErrorView } from './components/ErrorView/ErrorView'
 import { ProteinCalculator } from './services/calculator/proteinCalculator'
 import { HistoryStorage } from './services/storage/historyStorage'
 import { OpenFoodFactsAPI } from './services/api/openFoodFactsAPI'
-import { EventBus, EVENTS } from './utils/events'
+import { EventBus, EVENTS, type ScanErrorEvent } from './utils/events'
 import type {
   BarcodeScannedEvent,
   ManualEntrySubmitEvent,
@@ -193,9 +193,9 @@ class ProteinMeterApp {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      this.resultsDisplay.showError(
-        `Failed to fetch product data: ${errorMessage}. Please try again.`
-      )
+      this.eventBus.emit<ScanErrorEvent>(EVENTS.SCAN_ERROR, {
+        error: `Failed to fetch product data: ${errorMessage}. Please try again.`,
+      })
     }
   }
 
@@ -268,13 +268,11 @@ class ProteinMeterApp {
   private showIdle(): void {
     this.hideAllForms()
     this.resultsDisplay.showIdleState()
-    this.resultsDisplay.show()
   }
 
   private showScanning(): void {
     this.hideAllForms()
-    this.resultsDisplay.showScanningState()
-    this.resultsDisplay.show()
+    this.resultsDisplay.hide()
   }
 
   private showManualEntry(): void {

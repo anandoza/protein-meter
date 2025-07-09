@@ -114,32 +114,8 @@ export class ResultsDisplay {
     this.statusMessage.textContent = message
   }
 
-  showError(message: string): void {
-    this.errorMessage.textContent = message
-    this.statusMessage.textContent = 'Error occurred.'
-    this.show()
-  }
-
   showIdleState(): void {
-    this.statusMessage.textContent = 'Click "Scan Barcode" or "Manual Entry".'
-    this.productInfo.classList.add(CSS_CLASSES.HIDDEN)
-    this.errorMessage.textContent = ''
-  }
-
-  showScanningState(): void {
-    this.statusMessage.textContent = 'Starting scanner...'
-    this.productInfo.classList.add(CSS_CLASSES.HIDDEN)
-    this.errorMessage.textContent = ''
-  }
-
-  showManualEntryState(): void {
-    this.statusMessage.textContent = 'Enter product details manually.'
-    this.productInfo.classList.add(CSS_CLASSES.HIDDEN)
-    this.errorMessage.textContent = ''
-  }
-
-  showSearchState(): void {
-    this.statusMessage.textContent = 'Enter a food name to search.'
+    this.hide()
     this.productInfo.classList.add(CSS_CLASSES.HIDDEN)
     this.errorMessage.textContent = ''
   }
