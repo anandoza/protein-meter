@@ -242,11 +242,6 @@
   }
 }
 
-/* Button icon styles */
-button img {
-  filter: brightness(0) invert(1);
-}
-
 /* Force grid layout on desktop */
 @media (min-width: 768px) {
   .button-grid {

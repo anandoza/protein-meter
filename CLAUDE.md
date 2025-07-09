@@ -127,7 +127,7 @@ npm test -- ComponentName.test.ts
 - Tailwind CSS loaded via CDN in `index.html`
 - Component-specific styles grouped with comments
 - Uses PostCSS with Tailwind directives (@tailwind base/components/utilities)
-- Button icons use CSS filter for consistent white color in production builds
+- Button icons use white stroke color directly in SVG files
 
 ### Component Interaction Flow
 
