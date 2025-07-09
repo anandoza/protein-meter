@@ -119,6 +119,16 @@ npm test -- ComponentName.test.ts
 - Node.js 22 specified in `.nvmrc`
 - All tests must pass before merging (GitHub Actions CI)
 
+### Styling Architecture
+
+**CSS Organization:** `src/styles/main.css`
+
+- All custom styles live in `main.css` - no inline styles in HTML
+- Tailwind CSS loaded via CDN in `index.html`
+- Component-specific styles grouped with comments
+- Uses PostCSS with Tailwind directives (@tailwind base/components/utilities)
+- Button icons use white stroke color directly in SVG files
+
 ### Component Interaction Flow
 
 1. User action triggers event via component

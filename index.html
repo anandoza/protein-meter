@@ -14,30 +14,6 @@
     <title>Protein Meter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    <style>
-      @keyframes spin {
-        from {
-          transform: rotate(0deg);
-        }
-        to {
-          transform: rotate(360deg);
-        }
-      }
-      .animate-spin {
-        animation: spin 1s linear infinite;
-      }
-      /* Make SVG icons in buttons inherit text color */
-      button img[src$='.svg'] {
-        filter: brightness(0) invert(1);
-      }
-      /* Force grid layout on desktop */
-      @media (min-width: 768px) {
-        .button-grid {
-          display: grid !important;
-          grid-template-columns: repeat(3, 1fr) !important;
-        }
-      }
-    </style>
   </head>
   <body class="bg-gray-100 font-sans flex flex-col items-center min-h-screen p-4">
     <div class="bg-white p-6 md:p-8 rounded-lg shadow-xl w-full max-w-2xl">
