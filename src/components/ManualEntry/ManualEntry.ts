@@ -1,6 +1,7 @@
 import type { ManualEntryFormData } from '@/types'
 import { EventBus, EVENTS, type ManualEntrySubmitEvent } from '@/utils/events'
 import { CSS_CLASSES } from '@/utils/constants'
+import { ANIMATION_TIMINGS } from '@/utils/animations'
 
 export class ManualEntry {
   private eventBus = EventBus.getInstance()
@@ -116,15 +117,35 @@ export class ManualEntry {
     this.errorElement.classList.add(CSS_CLASSES.HIDDEN)
   }
 
+  // Animation methods
+  async animateIn(): Promise<void> {
+    this.formContainer.classList.remove(CSS_CLASSES.HIDDEN)
+    this.formContainer.classList.add('animating-in')
+    
+    return new Promise(resolve => {
+      setTimeout(() => {
+        this.formContainer.classList.remove('animating-in')
+        this.nameInput.focus()
+        resolve()
+      }, ANIMATION_TIMINGS.FORM_TRANSITION)
+    })
+  }
+
+  async animateOut(): Promise<void> {
+    return new Promise(resolve => {
+      this.formContainer.classList.add(CSS_CLASSES.HIDDEN)
+      setTimeout(resolve, ANIMATION_TIMINGS.FORM_TRANSITION)
+    })
+  }
+
   // Public API
   show(): void {
-    this.formContainer.classList.remove(CSS_CLASSES.HIDDEN)
     this.reset()
-    this.nameInput.focus()
+    this.animateIn()
   }
 
   hide(): void {
-    this.formContainer.classList.add(CSS_CLASSES.HIDDEN)
+    this.animateOut()
   }
 
   reset(): void {

@@ -2,6 +2,7 @@ import type { SearchFormData, OpenFoodFactsProduct } from '@/types'
 import { EventBus, EVENTS } from '@/utils/events'
 import { CSS_CLASSES } from '@/utils/constants'
 import { OpenFoodFactsAPI } from '@/services/api/openFoodFactsAPI'
+import { ANIMATION_TIMINGS } from '@/utils/animations'
 
 export class SearchFood {
   private eventBus = EventBus.getInstance()
@@ -212,17 +213,37 @@ export class SearchFood {
     this.noResultsMessage.style.display = 'none'
   }
 
-  // Public API
-  show(): void {
+  // Animation methods
+  async animateIn(): Promise<void> {
     this.formContainer.classList.remove(CSS_CLASSES.HIDDEN)
     this.resultsArea.classList.remove(CSS_CLASSES.HIDDEN)
+    this.formContainer.classList.add('animating-in')
+    
+    return new Promise(resolve => {
+      setTimeout(() => {
+        this.formContainer.classList.remove('animating-in')
+        this.queryInput.focus()
+        resolve()
+      }, ANIMATION_TIMINGS.FORM_TRANSITION)
+    })
+  }
+
+  async animateOut(): Promise<void> {
+    return new Promise(resolve => {
+      this.formContainer.classList.add(CSS_CLASSES.HIDDEN)
+      this.resultsArea.classList.add(CSS_CLASSES.HIDDEN)
+      setTimeout(resolve, ANIMATION_TIMINGS.FORM_TRANSITION)
+    })
+  }
+
+  // Public API
+  show(): void {
     this.reset()
-    this.queryInput.focus()
+    this.animateIn()
   }
 
   hide(): void {
-    this.formContainer.classList.add(CSS_CLASSES.HIDDEN)
-    this.resultsArea.classList.add(CSS_CLASSES.HIDDEN)
+    this.animateOut()
   }
 
   reset(): void {

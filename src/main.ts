@@ -10,6 +10,7 @@ import { ProteinCalculator } from './services/calculator/proteinCalculator'
 import { HistoryStorage } from './services/storage/historyStorage'
 import { OpenFoodFactsAPI } from './services/api/openFoodFactsAPI'
 import { EventBus, EVENTS, type ScanErrorEvent } from './utils/events'
+import { ANIMATION_TIMINGS } from './utils/animations'
 import type {
   BarcodeScannedEvent,
   ManualEntrySubmitEvent,
@@ -281,47 +282,59 @@ class ProteinMeterApp {
   }
 
   // UI State Management
-  private showIdle(): void {
-    this.hideAllForms()
+  private async showIdle(): Promise<void> {
+    await this.hideAllForms()
     this.showMainActionButtons()
     this.resultsDisplay.showIdleState()
   }
 
-  private showScanning(): void {
-    this.hideAllForms()
+  private async showScanning(): Promise<void> {
+    await this.hideAllForms()
     this.hideMainActionButtons()
     this.resultsDisplay.hide()
   }
 
-  private showManualEntry(): void {
+  private async showManualEntry(): Promise<void> {
     if (this.scanner.isCurrentlyScanning()) {
       this.scanner.stopScanning()
     }
-    this.hideAllForms()
+    
+    await this.hideAllForms() // Wait for exit animations to complete
     this.hideMainActionButtons()
-    this.manualEntry.show()
     this.resultsDisplay.hide()
+    
+    // Wait for exit animations to complete before showing new form
+    await this.manualEntry.animateIn()
   }
 
-  private showSearchFood(): void {
+  private async showSearchFood(): Promise<void> {
     if (this.scanner.isCurrentlyScanning()) {
       this.scanner.stopScanning()
     }
-    this.hideAllForms()
+    
+    await this.hideAllForms() // Wait for exit animations to complete
     this.hideMainActionButtons()
-    this.searchFood.show()
     this.resultsDisplay.hide()
+    
+    // Wait for exit animations to complete before showing new form
+    await this.searchFood.animateIn()
   }
 
-  private showResults(): void {
-    this.hideAllForms()
+  private async showResults(): Promise<void> {
+    await this.hideAllForms()
     this.showMainActionButtons()
     this.resultsDisplay.show()
   }
 
-  private hideAllForms(): void {
-    this.manualEntry.hide()
-    this.searchFood.hide()
+  private async hideAllForms(): Promise<void> {
+    const hidePromises = []
+    if (this.manualEntry.isVisible()) {
+      hidePromises.push(this.manualEntry.animateOut())
+    }
+    if (this.searchFood.isVisible()) {
+      hidePromises.push(this.searchFood.animateOut())
+    }
+    await Promise.all(hidePromises)
   }
 
   private showMainActionButtons(): void {
